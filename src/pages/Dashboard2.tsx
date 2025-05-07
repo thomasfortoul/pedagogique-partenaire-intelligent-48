@@ -172,98 +172,85 @@ const Dashboard2 = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <NavBar />
       
-      <div className="container mx-auto px-4 md:px-6 py-8">
+      <div className="container mx-auto px-4 py-8 max-w-5xl">
         {/* Dashboard header with welcome message */}
-        <Card className="mb-8">
-          <CardContent className="pt-6 pb-4">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold">
-                  Bonjour {teacher.firstName}
-                </h1>
-                <p className="text-gray-600 mt-1">
-                  Bienvenue sur votre espace personnel ERGI
-                </p>
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleOpenEditProfile}
-                className="flex items-center gap-2 ml-auto"
-              >
-                <User className="h-4 w-4" />
-                Modifier mon profil
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-bold text-ergi-dark">
+            Bonjour {teacher.firstName}
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Bienvenue sur votre espace personnel ERGI
+          </p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleOpenEditProfile}
+            className="flex items-center gap-2 mx-auto mt-4"
+          >
+            <User className="h-4 w-4" />
+            Modifier mon profil
+          </Button>
+        </div>
 
         {/* Courses section */}
-        <Card className="mb-8">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-xl">Mes cours</CardTitle>
-                <CardDescription>
-                  Gérez vos cours et créez de nouveaux contenus pédagogiques
-                  {courses.length >= 5 && (
-                    <p className="text-amber-600 font-medium mt-1">
-                      Limite: 5/5 cours atteinte
-                    </p>
-                  )}
-                </CardDescription>
-              </div>
-              <Button 
-                className="bg-ergi-primary hover:bg-ergi-dark"
-                onClick={() => setIsAddCourseOpen(true)}
-                disabled={courses.length >= 5}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Créer un cours
-              </Button>
+        <div className="mb-8 bg-white p-6 rounded-lg shadow-sm">
+          <div className="flex flex-col items-center justify-between mb-6 md:flex-row">
+            <div className="mb-4 md:mb-0 text-center md:text-left">
+              <h2 className="text-2xl font-semibold text-gray-900">Mes cours</h2>
+              <p className="text-sm text-gray-600">
+                Gérez vos cours et créez de nouveaux contenus pédagogiques
+                {courses.length >= 5 && (
+                  <span className="text-amber-600 font-medium ml-2">
+                    Limite: 5/5 cours atteinte
+                  </span>
+                )}
+              </p>
             </div>
-          </CardHeader>
-          <CardContent>
-            {courses.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {courses.map((course) => (
-                  <CourseCard 
-                    key={course.id} 
-                    course={course} 
-                    onEdit={handleEditCourse}
-                    onDelete={handleDeleteCourse}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-10">
-                <BookOpen className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900">Aucun cours créé</h3>
-                <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
-                  Vous n'avez pas encore créé de cours. Cliquez sur "Créer un cours" pour commencer.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            <Button 
+              className="bg-ergi-primary hover:bg-ergi-dark"
+              onClick={() => setIsAddCourseOpen(true)}
+              disabled={courses.length >= 5}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Créer un cours
+            </Button>
+          </div>
+          
+          {courses.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {courses.map((course) => (
+                <CourseCard 
+                  key={course.id} 
+                  course={course} 
+                  onEdit={handleEditCourse}
+                  onDelete={handleDeleteCourse}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-gray-50 rounded-lg">
+              <BookOpen className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+              <h3 className="text-xl font-medium text-gray-900">Aucun cours créé</h3>
+              <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
+                Vous n'avez pas encore créé de cours. Cliquez sur "Créer un cours" pour commencer.
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* Recent activities section (placeholder) */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">Activités récentes</CardTitle>
-            <CardDescription>
-              Suivez vos dernières activités sur la plateforme
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8">
-              <p className="text-gray-500">Aucune activité récente à afficher.</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-2 text-center">Activités récentes</h2>
+          <p className="text-sm text-gray-600 text-center mb-6">
+            Suivez vos dernières activités sur la plateforme
+          </p>
+          <div className="text-center py-8 bg-gray-50 rounded-lg">
+            <p className="text-gray-500">Aucune activité récente à afficher.</p>
+          </div>
+        </div>
         
         {/* Profile edit dialog */}
         <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
