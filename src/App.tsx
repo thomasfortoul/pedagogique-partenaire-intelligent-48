@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Generate from "./pages/Generate";
 import Correct from "./pages/Correct";
 import Dashboard from "./pages/Dashboard";
+import Dashboard2 from "./pages/Dashboard2"; // Importer le nouveau dashboard
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -58,6 +59,11 @@ const App = () => {
               <Route path="/dashboard" element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/dashboard2" element={
+                <ProtectedRoute>
+                  <Dashboard2 />
                 </ProtectedRoute>
               } />
               <Route path="/login" element={<Login />} />

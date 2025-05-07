@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { BookOpenText, FileText, CheckSquare, LayoutDashboard, LogOut } from 'lucide-react';
+import { BookOpenText, FileText, CheckSquare, LayoutDashboard, Layout, LogOut } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { AuthContext } from '../App';
 
@@ -46,6 +46,10 @@ const NavBar = () => {
             <Link to="/dashboard" className="text-gray-600 hover:text-ergi-primary transition-colors font-medium text-sm flex items-center gap-1">
               <LayoutDashboard className="h-4 w-4" />
               <span>Tableau de bord</span>
+            </Link>
+            <Link to="/dashboard2" className="text-gray-600 hover:text-ergi-primary transition-colors font-medium text-sm flex items-center gap-1">
+              <Layout className="h-4 w-4" />
+              <span>Mon Espace</span>
             </Link>
           </nav>
         ) : null}
