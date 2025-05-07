@@ -37,7 +37,7 @@ const NavBar = () => {
             
             
             <Link to="/dashboard" className="text-gray-600 hover:text-ergi-primary transition-colors font-medium text-sm flex items-center gap-1">
-              <LayoutDashboard className="h-4 w-4" />
+              
               
             </Link>
             <Link to="/dashboard2" className="text-gray-600 hover:text-ergi-primary transition-colors font-medium text-sm flex items-center gap-1">
