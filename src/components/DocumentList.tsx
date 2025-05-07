@@ -3,7 +3,7 @@ import React from 'react';
 import { Document } from '@/types/course';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
-import { File, FileText, FileImage, FileMinus, FilePresentation, Trash } from 'lucide-react';
+import { File, FileText, FileImage, FileMinus, FileSliders, Trash } from 'lucide-react';
 import { formatFileSize } from '@/lib/utils';
 
 interface DocumentListProps {
@@ -17,7 +17,7 @@ const DocumentList = ({ documents, onDelete }: DocumentListProps) => {
     if (fileType.includes('pdf')) return <File className="h-6 w-6 text-red-500" />;
     if (fileType.includes('doc') || fileType.includes('txt')) return <FileText className="h-6 w-6 text-blue-500" />;
     if (fileType.includes('image')) return <FileImage className="h-6 w-6 text-green-500" />;
-    if (fileType.includes('presentation') || fileType.includes('ppt')) return <FilePresentation className="h-6 w-6 text-amber-500" />;
+    if (fileType.includes('presentation') || fileType.includes('ppt')) return <FileSliders className="h-6 w-6 text-amber-500" />;
     return <File className="h-6 w-6 text-gray-500" />;
   };
 
