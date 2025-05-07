@@ -3,8 +3,9 @@ import React from 'react';
 import { Course } from '@/types/course';
 import { Card, CardContent, CardFooter } from './ui/card';
 import { Button } from './ui/button';
-import { BookOpenText, Edit, Trash2, Settings } from 'lucide-react';
+import { BookOpenText, Trash2, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Badge } from './ui/badge';
 
 interface CourseCardProps {
   course: Course;
@@ -39,45 +40,29 @@ const CourseCard = ({ course, onEdit, onDelete }: CourseCardProps) => {
         
         <div className="mt-4 flex flex-wrap gap-2">
           {course.level && (
-            <span className="text-xs font-medium bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
+            <Badge variant="outline" className="bg-gray-100 text-gray-700 hover:bg-gray-100">
               {course.level}
-            </span>
+            </Badge>
           )}
           
           {course.documents && course.documents.length > 0 && (
-            <span className="text-xs font-medium bg-blue-50 text-blue-700 px-3 py-1 rounded-full flex items-center">
-              <BookOpenText className="h-3 w-3 mr-1" />
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50 flex items-center gap-1">
+              <BookOpenText className="h-3 w-3" />
               {course.documents.length} document{course.documents.length > 1 ? 's' : ''}
-            </span>
+            </Badge>
           )}
         </div>
+        
+        {/* Session information */}
+        {course.session && (
+          <div className="mt-4 flex items-center text-sm text-ergi-dark">
+            <Calendar className="h-4 w-4 mr-2 text-ergi-primary" />
+            <span>Session: {course.session}</span>
+          </div>
+        )}
       </CardContent>
       
-      <CardFooter className="border-t pt-4 flex justify-between gap-2 bg-gray-50">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/course/${course.id}/dashboard`);
-          }}
-          className="flex-1 hover:bg-ergi-light/20 hover:text-ergi-dark"
-        >
-          <Settings className="h-4 w-4 mr-2" />
-          Dashboard
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/course/${course.id}`);
-          }}
-          className="flex-1 hover:bg-ergi-primary/10 hover:text-ergi-primary"
-        >
-          <Edit className="h-4 w-4 mr-2" />
-          Personnaliser
-        </Button>
+      <CardFooter className="border-t pt-4 flex justify-end gap-2 bg-gray-50">
         <Button
           variant="outline"
           size="sm"
