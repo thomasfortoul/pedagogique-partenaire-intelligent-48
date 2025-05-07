@@ -53,7 +53,7 @@ const Login = () => {
     // Set login state in context
     setIsLoggedIn(true);
     
-    navigate('/dashboard');
+    navigate('/dashboard2');  // Changed from '/dashboard' to '/dashboard2'
   };
 
   return (
