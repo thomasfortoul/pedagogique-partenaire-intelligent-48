@@ -177,18 +177,18 @@ const Dashboard2 = () => {
       
       <div className="container mx-auto px-4 py-8 max-w-5xl">
         {/* Dashboard header with welcome message */}
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-ergi-dark">
+        <div className="mb-12 text-center">
+          <h1 className="text-4xl font-bold text-ergi-dark">
             Bonjour {teacher.firstName}
           </h1>
-          <p className="text-gray-600 mt-1">
+          <p className="text-gray-600 mt-2 text-lg">
             Bienvenue sur votre espace personnel ERGI
           </p>
           <Button 
             variant="outline" 
             size="sm" 
             onClick={handleOpenEditProfile}
-            className="flex items-center gap-2 mx-auto mt-4"
+            className="flex items-center gap-2 mx-auto mt-6 bg-white hover:bg-gray-100"
           >
             <User className="h-4 w-4" />
             Modifier mon profil
@@ -196,11 +196,11 @@ const Dashboard2 = () => {
         </div>
 
         {/* Courses section */}
-        <div className="mb-8 bg-white p-6 rounded-lg shadow-sm">
-          <div className="flex flex-col items-center justify-between mb-6 md:flex-row">
+        <div className="mb-12 bg-transparent p-0">
+          <div className="flex flex-col items-center justify-between mb-8 md:flex-row">
             <div className="mb-4 md:mb-0 text-center md:text-left">
               <h2 className="text-2xl font-semibold text-gray-900">Mes cours</h2>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 mt-1">
                 Gérez vos cours et créez de nouveaux contenus pédagogiques
                 {courses.length >= 5 && (
                   <span className="text-amber-600 font-medium ml-2">
@@ -210,7 +210,7 @@ const Dashboard2 = () => {
               </p>
             </div>
             <Button 
-              className="bg-ergi-primary hover:bg-ergi-dark"
+              className="bg-ergi-primary hover:bg-ergi-dark shadow-md"
               onClick={() => setIsAddCourseOpen(true)}
               disabled={courses.length >= 5}
             >
@@ -220,7 +220,7 @@ const Dashboard2 = () => {
           </div>
           
           {courses.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {courses.map((course) => (
                 <CourseCard 
                   key={course.id} 
@@ -231,18 +231,25 @@ const Dashboard2 = () => {
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 bg-gray-50 rounded-lg">
-              <BookOpen className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-              <h3 className="text-xl font-medium text-gray-900">Aucun cours créé</h3>
-              <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
+            <div className="text-center py-16 bg-white rounded-lg shadow-sm mt-4">
+              <BookOpen className="mx-auto h-16 w-16 text-gray-300 mb-6" />
+              <h3 className="text-xl font-medium text-gray-800">Aucun cours créé</h3>
+              <p className="text-gray-500 mt-3 max-w-lg mx-auto">
                 Vous n'avez pas encore créé de cours. Cliquez sur "Créer un cours" pour commencer.
               </p>
+              <Button 
+                className="bg-ergi-primary hover:bg-ergi-dark shadow-sm mt-6"
+                onClick={() => setIsAddCourseOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Créer mon premier cours
+              </Button>
             </div>
           )}
         </div>
 
         {/* Recent activities section (placeholder) */}
-        <div className="bg-white p-6 rounded-lg shadow-sm">
+        <div className="bg-white p-8 rounded-xl shadow-sm mb-8">
           <h2 className="text-2xl font-semibold text-gray-900 mb-2 text-center">Activités récentes</h2>
           <p className="text-sm text-gray-600 text-center mb-6">
             Suivez vos dernières activités sur la plateforme

@@ -20,35 +20,40 @@ const CourseCard = ({ course, onEdit, onDelete }: CourseCardProps) => {
   };
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="h-full flex flex-col transition-all duration-300 hover:shadow-lg hover:-translate-y-1 overflow-hidden border-none shadow-md">
+      <div className="bg-gradient-to-br from-ergi-light to-white h-2" />
+      
       <CardContent className="pt-6 flex-grow cursor-pointer" onClick={handleCardClick}>
-        <div className="flex items-start mb-2">
-          <BookOpenText className="h-5 w-5 text-ergi-primary mr-2 flex-shrink-0" />
-          <h3 className="font-medium text-lg line-clamp-2">{course.title}</h3>
+        <div className="flex items-start mb-3">
+          <div className="p-2 bg-ergi-light/30 rounded-md mr-3 flex-shrink-0">
+            <BookOpenText className="h-6 w-6 text-ergi-primary" />
+          </div>
+          <h3 className="font-semibold text-lg line-clamp-2 pt-1">{course.title}</h3>
         </div>
         
         {course.description && (
-          <p className="text-gray-600 text-sm mt-2 line-clamp-3">
+          <p className="text-gray-600 text-sm mt-3 line-clamp-3">
             {course.description}
           </p>
         )}
         
-        {course.level && (
-          <div className="mt-3">
-            <span className="text-xs font-medium bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
+        <div className="mt-4 flex flex-wrap gap-2">
+          {course.level && (
+            <span className="text-xs font-medium bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
               {course.level}
             </span>
-          </div>
-        )}
-        
-        {course.documents && course.documents.length > 0 && (
-          <div className="mt-3 text-sm text-gray-500">
-            {course.documents.length} document{course.documents.length > 1 ? 's' : ''}
-          </div>
-        )}
+          )}
+          
+          {course.documents && course.documents.length > 0 && (
+            <span className="text-xs font-medium bg-blue-50 text-blue-700 px-3 py-1 rounded-full flex items-center">
+              <BookOpenText className="h-3 w-3 mr-1" />
+              {course.documents.length} document{course.documents.length > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
       </CardContent>
       
-      <CardFooter className="border-t pt-4 flex justify-between gap-2">
+      <CardFooter className="border-t pt-4 flex justify-between gap-2 bg-gray-50">
         <Button
           variant="outline"
           size="sm"
@@ -56,7 +61,7 @@ const CourseCard = ({ course, onEdit, onDelete }: CourseCardProps) => {
             e.stopPropagation();
             navigate(`/course/${course.id}/dashboard`);
           }}
-          className="flex-1"
+          className="flex-1 hover:bg-ergi-light/20 hover:text-ergi-dark"
         >
           <Settings className="h-4 w-4 mr-2" />
           Dashboard
@@ -68,7 +73,7 @@ const CourseCard = ({ course, onEdit, onDelete }: CourseCardProps) => {
             e.stopPropagation();
             navigate(`/course/${course.id}`);
           }}
-          className="flex-1"
+          className="flex-1 hover:bg-ergi-primary/10 hover:text-ergi-primary"
         >
           <Edit className="h-4 w-4 mr-2" />
           Personnaliser
