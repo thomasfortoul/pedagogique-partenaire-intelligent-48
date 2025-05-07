@@ -8,12 +8,13 @@ import Index from "./pages/Index";
 import Generate from "./pages/Generate";
 import Correct from "./pages/Correct";
 import Dashboard from "./pages/Dashboard";
-import Dashboard2 from "./pages/Dashboard2"; // Importer le nouveau dashboard
+import Dashboard2 from "./pages/Dashboard2";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ResetPassword from "./pages/ResetPassword";
 import CourseDetail from './pages/CourseDetail';
+import CourseDashboard from './pages/CourseDashboard';
 
 const queryClient = new QueryClient();
 
@@ -69,12 +70,19 @@ const App = () => {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route 
                 path="/course/:courseId" 
                 element={
                   <ProtectedRoute>
                     <CourseDetail />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/course/:courseId/dashboard" 
+                element={
+                  <ProtectedRoute>
+                    <CourseDashboard />
                   </ProtectedRoute>
                 } 
               />

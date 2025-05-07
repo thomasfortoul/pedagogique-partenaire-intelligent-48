@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { AuthContext } from '@/App';
 import NavBar from '@/components/NavBar';
-import { ArrowLeft, BookOpenText, Edit } from 'lucide-react';
+import { ArrowLeft, BookOpenText, Edit, FileText, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Course, Document } from '@/types/course';
 import DocumentList from '@/components/DocumentList';
@@ -148,22 +148,33 @@ const CourseDetail = () => {
               variant="ghost" 
               size="sm"
               className="flex gap-1 items-center" 
-              onClick={() => navigate('/dashboard2')}
+              onClick={() => navigate(`/course/${courseId}/dashboard`)}
             >
               <ArrowLeft className="h-4 w-4" />
-              <span>Retour</span>
+              <span>Retour au dashboard</span>
             </Button>
             <h1 className="text-2xl font-bold">{course.title}</h1>
           </div>
-          <Button 
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
-            onClick={() => navigate(`/dashboard2/edit-course/${courseId}`)}
-          >
-            <Edit className="h-4 w-4" />
-            Modifier le cours
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+              onClick={() => navigate(`/course/${courseId}/dashboard`)}
+            >
+              <Settings className="h-4 w-4" />
+              Dashboard du cours
+            </Button>
+            <Button 
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+              onClick={() => navigate('/dashboard2')}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Mes cours
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -216,6 +227,17 @@ const CourseDetail = () => {
                     <p className="mt-1">{course.level}</p>
                   </div>
                 )}
+                
+                <div className="pt-4">
+                  <Button
+                    onClick={() => navigate('/dashboard2')}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Modifier les informations
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>

@@ -3,7 +3,7 @@ import React from 'react';
 import { Course } from '@/types/course';
 import { Card, CardContent, CardFooter } from './ui/card';
 import { Button } from './ui/button';
-import { BookOpenText, Edit, Trash2 } from 'lucide-react';
+import { BookOpenText, Edit, Trash2, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface CourseCardProps {
@@ -16,7 +16,7 @@ const CourseCard = ({ course, onEdit, onDelete }: CourseCardProps) => {
   const navigate = useNavigate();
   
   const handleCardClick = () => {
-    navigate(`/course/${course.id}`);
+    navigate(`/course/${course.id}/dashboard`);
   };
 
   return (
@@ -54,12 +54,24 @@ const CourseCard = ({ course, onEdit, onDelete }: CourseCardProps) => {
           size="sm"
           onClick={(e) => {
             e.stopPropagation();
-            onEdit(course);
+            navigate(`/course/${course.id}/dashboard`);
+          }}
+          className="flex-1"
+        >
+          <Settings className="h-4 w-4 mr-2" />
+          Dashboard
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/course/${course.id}`);
           }}
           className="flex-1"
         >
           <Edit className="h-4 w-4 mr-2" />
-          Modifier
+          Personnaliser
         </Button>
         <Button
           variant="outline"
@@ -68,10 +80,9 @@ const CourseCard = ({ course, onEdit, onDelete }: CourseCardProps) => {
             e.stopPropagation();
             onDelete(course.id);
           }}
-          className="text-red-500 hover:text-red-700 hover:bg-red-50 flex-1"
+          className="text-red-500 hover:text-red-700 hover:bg-red-50"
         >
-          <Trash2 className="h-4 w-4 mr-2" />
-          Supprimer
+          <Trash2 className="h-4 w-4" />
         </Button>
       </CardFooter>
     </Card>
