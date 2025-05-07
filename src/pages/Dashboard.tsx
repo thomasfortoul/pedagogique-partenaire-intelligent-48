@@ -21,8 +21,9 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { LayoutDashboard, FileText, CheckSquare, Clock, Award, Users, Book, Eye } from 'lucide-react';
+import { LayoutDashboard, FileText, CheckSquare, Clock, Award, Users, Book, Eye, PenLine } from 'lucide-react';
 import NavBar from '@/components/NavBar';
+import { useNavigate } from 'react-router-dom';
 
 // Données d'exemple pour les graphiques
 const evaluationData = [
@@ -104,6 +105,8 @@ const classPerformance = [
 ];
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen flex flex-col">
       <NavBar />
@@ -134,6 +137,24 @@ const Dashboard = () => {
               Nouvelle évaluation
             </Button>
           </div>
+        </div>
+        
+        {/* Boutons d'action rapide */}
+        <div className="flex flex-wrap gap-4 mb-8">
+          <Button 
+            className="bg-ergi-primary hover:bg-ergi-dark flex-grow md:flex-grow-0" 
+            onClick={() => navigate('/generate')}
+          >
+            <FileText className="h-5 w-5 mr-2" />
+            Générer une évaluation
+          </Button>
+          <Button 
+            className="bg-ergi-primary hover:bg-ergi-dark flex-grow md:flex-grow-0" 
+            onClick={() => navigate('/correct')}
+          >
+            <PenLine className="h-5 w-5 mr-2" />
+            Corriger une évaluation
+          </Button>
         </div>
         
         {/* Statistiques principales */}
