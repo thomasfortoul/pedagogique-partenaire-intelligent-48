@@ -30,20 +30,25 @@ const NavBar = () => {
           <BookOpenText className="h-8 w-8 text-ergi-primary" />
           <span className="font-bold text-xl text-ergi-primary">ERGI</span>
         </Link>
-        <nav className="hidden md:flex items-center space-x-6">
-          <Link to="/generate" className="text-gray-600 hover:text-ergi-primary transition-colors font-medium text-sm flex items-center gap-1">
-            <FileText className="h-4 w-4" />
-            <span>Générer une évaluation</span>
-          </Link>
-          <Link to="/correct" className="text-gray-600 hover:text-ergi-primary transition-colors font-medium text-sm flex items-center gap-1">
-            <CheckSquare className="h-4 w-4" />
-            <span>Corriger une évaluation</span>
-          </Link>
-          <Link to="/dashboard" className="text-gray-600 hover:text-ergi-primary transition-colors font-medium text-sm flex items-center gap-1">
-            <LayoutDashboard className="h-4 w-4" />
-            <span>Tableau de bord</span>
-          </Link>
-        </nav>
+        
+        {/* Only show main feature navigation for logged in users */}
+        {isLoggedIn ? (
+          <nav className="hidden md:flex items-center space-x-6">
+            <Link to="/generate" className="text-gray-600 hover:text-ergi-primary transition-colors font-medium text-sm flex items-center gap-1">
+              <FileText className="h-4 w-4" />
+              <span>Générer une évaluation</span>
+            </Link>
+            <Link to="/correct" className="text-gray-600 hover:text-ergi-primary transition-colors font-medium text-sm flex items-center gap-1">
+              <CheckSquare className="h-4 w-4" />
+              <span>Corriger une évaluation</span>
+            </Link>
+            <Link to="/dashboard" className="text-gray-600 hover:text-ergi-primary transition-colors font-medium text-sm flex items-center gap-1">
+              <LayoutDashboard className="h-4 w-4" />
+              <span>Tableau de bord</span>
+            </Link>
+          </nav>
+        ) : null}
+        
         <div className="flex items-center space-x-2">
           {isLoggedIn ? (
             <Button 
