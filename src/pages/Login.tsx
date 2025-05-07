@@ -29,7 +29,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { setIsLoggedIn } = React.useContext(AuthContext);
+  const { setIsLoggedIn, refreshSession } = React.useContext(AuthContext);
 
   // Initialize the form with validation schema
   const form = useForm<LoginFormValues>({

@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import React from "react";
+import React, { useEffect } from "react";
 import Index from "./pages/Index";
 import Generate from "./pages/Generate";
 import Correct from "./pages/Correct";
@@ -19,15 +19,24 @@ import CourseDashboard from './pages/CourseDashboard';
 
 const queryClient = new QueryClient();
 
-// Simple authentication context
+// Simple authentication context with sessionTimeout
 export const AuthContext = React.createContext({
   isLoggedIn: false,
-  setIsLoggedIn: (value: boolean) => {}
+  setIsLoggedIn: (value: boolean) => {},
+  refreshSession: () => {}
 });
+
+// Session timeout in milliseconds (1 hour)
+const SESSION_TIMEOUT = 60 * 60 * 1000;
 
 // Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isLoggedIn } = React.useContext(AuthContext);
+  const { isLoggedIn, refreshSession } = React.useContext(AuthContext);
+  
+  // Refresh the session timer when accessing a protected route
+  React.useEffect(() => {
+    refreshSession();
+  }, [refreshSession]);
   
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />;
@@ -37,11 +46,61 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const App = () => {
-  const [isLoggedIn, setIsLoggedIn] = React.useState(false);
+  const [isLoggedIn, setIsLoggedIn] = React.useState<boolean>(() => {
+    // Check localStorage for existing session when app loads
+    const sessionData = localStorage.getItem('ergiSession');
+    if (sessionData) {
+      const { expiry } = JSON.parse(sessionData);
+      if (expiry && expiry > Date.now()) {
+        return true;
+      }
+      // Session expired, clear it
+      localStorage.removeItem('ergiSession');
+    }
+    return false;
+  });
+
+  // Function to refresh the session
+  const refreshSession = React.useCallback(() => {
+    if (isLoggedIn) {
+      const expiry = Date.now() + SESSION_TIMEOUT;
+      localStorage.setItem('ergiSession', JSON.stringify({ expiry }));
+    }
+  }, [isLoggedIn]);
+
+  // Set up session on login change
+  useEffect(() => {
+    if (isLoggedIn) {
+      refreshSession();
+    } else {
+      localStorage.removeItem('ergiSession');
+    }
+  }, [isLoggedIn, refreshSession]);
+
+  // Set up timer to check session expiry
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    
+    const checkSession = () => {
+      const sessionData = localStorage.getItem('ergiSession');
+      if (sessionData) {
+        const { expiry } = JSON.parse(sessionData);
+        if (expiry && expiry < Date.now()) {
+          setIsLoggedIn(false);
+        }
+      } else {
+        setIsLoggedIn(false);
+      }
+    };
+    
+    // Check session every minute
+    const interval = setInterval(checkSession, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [isLoggedIn]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider value={{ isLoggedIn, setIsLoggedIn }}>
+      <AuthContext.Provider value={{ isLoggedIn, setIsLoggedIn, refreshSession }}>
         <TooltipProvider>
           <Toaster />
           <Sonner />
