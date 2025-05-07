@@ -32,7 +32,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { BookOpen, BookOpenText, Edit, Plus, Trash2, User } from 'lucide-react';
 import NavBar from '@/components/NavBar';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { AuthContext } from '../App';
 import CourseCard from '@/components/CourseCard';
 import CourseForm from '@/components/CourseForm';
@@ -46,17 +46,12 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
-// Mock data for initial course list
-const initialCoursesData: Course[] = [
-  // Empty by default for new users
-];
-
 const Dashboard2 = () => {
   const { toast } = useToast();
   const { isLoggedIn } = React.useContext(AuthContext);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isAddCourseOpen, setIsAddCourseOpen] = useState(false);
-  const [courses, setCourses] = useState<Course[]>(initialCoursesData);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [currentCourse, setCurrentCourse] = useState<Course | null>(null);
   const [isEditCourseOpen, setIsEditCourseOpen] = useState(false);
 
@@ -65,6 +60,19 @@ const Dashboard2 = () => {
     firstName: 'Marie',
     lastName: 'Durand'
   });
+
+  // Load courses from localStorage on initial render
+  useEffect(() => {
+    const storedCoursesString = localStorage.getItem('courses');
+    if (storedCoursesString) {
+      try {
+        const storedCourses = JSON.parse(storedCoursesString);
+        setCourses(storedCourses);
+      } catch (error) {
+        console.error("Error parsing stored courses:", error);
+      }
+    }
+  }, []);
 
   // Initialize the profile form
   const profileForm = useForm<ProfileFormValues>({
@@ -113,10 +121,15 @@ const Dashboard2 = () => {
     const newCourse = {
       ...course,
       id: Date.now().toString(),
-      // In a real app, we would get the teacher ID from the authenticated user
+      documents: [],
     };
     
-    setCourses([...courses, newCourse]);
+    const updatedCourses = [...courses, newCourse];
+    setCourses(updatedCourses);
+    
+    // Store in localStorage for persistence
+    localStorage.setItem('courses', JSON.stringify(updatedCourses));
+    
     toast({
       title: "Cours créé",
       description: `Le cours "${course.title}" a été créé avec succès.`,
@@ -132,9 +145,13 @@ const Dashboard2 = () => {
 
   // Update a course
   const handleUpdateCourse = (updatedCourse: Course) => {
-    setCourses(courses.map(c => 
-      c.id === updatedCourse.id ? updatedCourse : c
-    ));
+    const updatedCourses = courses.map(c => 
+      c.id === updatedCourse.id ? { ...updatedCourse, documents: c.documents || [] } : c
+    );
+    
+    setCourses(updatedCourses);
+    localStorage.setItem('courses', JSON.stringify(updatedCourses));
+    
     toast({
       title: "Cours mis à jour",
       description: `Le cours "${updatedCourse.title}" a été mis à jour avec succès.`,
@@ -144,7 +161,10 @@ const Dashboard2 = () => {
 
   // Delete a course
   const handleDeleteCourse = (courseId: string) => {
-    setCourses(courses.filter(c => c.id !== courseId));
+    const updatedCourses = courses.filter(c => c.id !== courseId);
+    setCourses(updatedCourses);
+    localStorage.setItem('courses', JSON.stringify(updatedCourses));
+    
     toast({
       title: "Cours supprimé",
       description: "Le cours a été supprimé avec succès.",
