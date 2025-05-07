@@ -15,15 +15,56 @@ import { ArrowLeft, FileText, Calendar, BookOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Course } from '@/types/course';
 
+// Helper function to initialize demo courses in localStorage if needed
+const initializeDemoCourses = () => {
+  const coursesExist = localStorage.getItem('courses');
+  
+  if (!coursesExist) {
+    const demoCourses = [
+      {
+        id: '1746655359279',
+        title: 'Introduction à la programmation',
+        description: 'Un cours d\'introduction aux concepts fondamentaux de la programmation informatique',
+        level: 'Débutant',
+        session: 'Automne 2025',
+        documents: [
+          {
+            id: 'doc1',
+            fileName: 'Introduction.pdf',
+            fileSize: 1200000,
+            fileType: 'application/pdf',
+            uploadDate: '2025-05-01'
+          }
+        ]
+      },
+      {
+        id: '1746655359280',
+        title: 'Structures de données avancées',
+        description: 'Exploration des structures de données complexes et leur application',
+        level: 'Avancé',
+        session: 'Hiver 2025',
+        documents: []
+      }
+    ];
+    
+    localStorage.setItem('courses', JSON.stringify(demoCourses));
+    console.log('Demo courses initialized in localStorage');
+  }
+};
+
 const SimpleDashboard = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const { isLoggedIn } = React.useContext(AuthContext);
   const { toast } = useToast();
   const [course, setCourse] = useState<Course | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Load course data from localStorage
+  // Initialize demo courses and load course data from localStorage
   useEffect(() => {
+    // Initialize demo courses if needed
+    initializeDemoCourses();
+    
     const storedCoursesString = localStorage.getItem('courses');
     if (storedCoursesString) {
       try {
@@ -35,19 +76,47 @@ const SimpleDashboard = () => {
         } else {
           toast({
             title: "Cours introuvable",
-            description: "Ce cours n'existe pas ou vous n'y avez pas accès.",
+            description: `Le cours avec l'ID ${courseId} n'existe pas ou vous n'y avez pas accès.`,
             variant: "destructive"
           });
           navigate('/dashboard2');
         }
       } catch (error) {
         console.error("Error parsing courses data:", error);
+        toast({
+          title: "Erreur",
+          description: "Une erreur est survenue lors du chargement du cours.",
+          variant: "destructive"
+        });
         navigate('/dashboard2');
+      } finally {
+        setLoading(false);
       }
     } else {
+      setLoading(false);
+      toast({
+        title: "Aucun cours disponible",
+        description: "Aucun cours n'a été trouvé dans le système.",
+        variant: "destructive"
+      });
       navigate('/dashboard2');
     }
   }, [courseId, navigate, toast]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <NavBar />
+        <div className="container mx-auto px-4 md:px-6 py-8">
+          <Card>
+            <CardContent className="flex items-center justify-center p-10">
+              <p>Chargement en cours...</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   if (!course) {
     return (
@@ -56,7 +125,12 @@ const SimpleDashboard = () => {
         <div className="container mx-auto px-4 md:px-6 py-8">
           <Card>
             <CardContent className="flex items-center justify-center p-10">
-              <p>Chargement...</p>
+              <div className="flex flex-col items-center gap-4">
+                <p className="text-red-500">Cours introuvable</p>
+                <Button onClick={() => navigate('/dashboard2')}>
+                  Retour à mes cours
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
