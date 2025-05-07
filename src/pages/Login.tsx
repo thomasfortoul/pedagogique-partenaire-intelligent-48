@@ -16,6 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { BookOpenText } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { AuthContext } from '../App';
 
 // Validation schema
 const loginSchema = z.object({
@@ -28,6 +29,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { setIsLoggedIn } = React.useContext(AuthContext);
 
   // Initialize the form with validation schema
   const form = useForm<LoginFormValues>({
@@ -47,6 +49,9 @@ const Login = () => {
       title: "Connexion réussie",
       description: "Bienvenue sur ERGI, votre assistant pédagogique.",
     });
+    
+    // Set login state in context
+    setIsLoggedIn(true);
     
     navigate('/dashboard');
   };

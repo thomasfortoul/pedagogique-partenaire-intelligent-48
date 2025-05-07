@@ -4,17 +4,18 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { BookOpenText, FileText, CheckSquare, LayoutDashboard, LogOut } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { AuthContext } from '../App';
 
 const NavBar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  // Simulate user authentication state - in a real app, this would come from an auth context
-  const [isLoggedIn, setIsLoggedIn] = React.useState(false);
+  // Get authentication state from global context
+  const { isLoggedIn, setIsLoggedIn } = React.useContext(AuthContext);
   
   const handleLogout = () => {
-    // Simulate logout
+    // Logout using the context
     setIsLoggedIn(false);
     toast({
       title: "Déconnexion réussie",
