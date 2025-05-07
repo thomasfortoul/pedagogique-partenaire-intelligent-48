@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -11,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { AuthContext } from '@/App';
 import NavBar from '@/components/NavBar';
-import { ArrowLeft, BookOpenText, Edit, FileText, Settings } from 'lucide-react';
+import { ArrowLeft, BookOpenText, Edit, FileText, Settings, Layout } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Course, Document } from '@/types/course';
 import DocumentList from '@/components/DocumentList';
@@ -160,10 +159,19 @@ const CourseDetail = () => {
               variant="outline"
               size="sm"
               className="flex items-center gap-2"
+              onClick={() => navigate(`/dashboard-${courseId}`)}
+            >
+              <Layout className="h-4 w-4" />
+              Dashboard simplifié
+            </Button>
+            <Button 
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
               onClick={() => navigate(`/course/${courseId}/dashboard`)}
             >
-              <Settings className="h-4 w-4" />
-              Dashboard du cours
+              <Layout className="h-4 w-4" />
+              Dashboard complet
             </Button>
             <Button 
               variant="outline"

@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { BookOpenText, Layout, LogOut } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -10,6 +10,11 @@ const NavBar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  
+  // Check if we're on a course page to extract courseId
+  const coursePath = location.pathname.match(/\/course\/([^\/]+)/);
+  const dashboardPath = location.pathname.match(/\/dashboard-([^\/]+)/);
+  const courseId = coursePath ? coursePath[1] : (dashboardPath ? dashboardPath[1] : null);
 
   // Get authentication state from global context
   const { isLoggedIn, setIsLoggedIn, refreshSession } = React.useContext(AuthContext);
@@ -49,6 +54,22 @@ const NavBar = () => {
               <Layout className="h-4 w-4" />
               <span>Mon Espace</span>
             </Link>
+            {courseId && (
+              <>
+                <Link
+                  to={`/course/${courseId}/dashboard`}
+                  className="text-gray-600 hover:text-ergi-primary transition-colors font-medium text-sm"
+                >
+                  Dashboard complet
+                </Link>
+                <Link
+                  to={`/dashboard-${courseId}`}
+                  className="text-gray-600 hover:text-ergi-primary transition-colors font-medium text-sm"
+                >
+                  Dashboard simple
+                </Link>
+              </>
+            )}
           </nav>
         ) : null}
         
