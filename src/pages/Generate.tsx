@@ -1,351 +1,272 @@
-
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
-} from '@/components/ui/card';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Slider } from '@/components/ui/slider';
-import { 
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage
-} from '@/components/ui/form';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { FileText, Upload, ArrowRight, Copy, Download } from 'lucide-react';
-import NavBar from '@/components/NavBar';
 import { useToast } from '@/hooks/use-toast';
+import NavBar from '@/components/NavBar';
+import { Send, Copy, Download, ArrowRight, MessageSquare } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-const formSchema = z.object({
-  subject: z.string().min(1, { message: "Veuillez sélectionner une matière" }),
-  level: z.string().min(1, { message: "Veuillez sélectionner un niveau" }),
-  topic: z.string().min(3, { message: "Le sujet doit contenir au moins 3 caractères" }),
-  duration: z.number().min(10).max(180),
-  instructions: z.string().optional(),
-});
+// Props for AgentCall badge
+type AgentCallProps = { name: string };
+// Names of agents in the workflow
+const AGENT_NAMES = [
+  'MainAgent',
+  'ObjectiveAgent',
+  'PedagogyAgent',
+  'BloomAgent',
+  'QuestionAgent',
+  'ExamCreatorAgent',
+];
 
-const Generate = () => {
-  const [generatedContent, setGeneratedContent] = useState<string | null>(null);
+// Animated badge showing current agent
+function AgentCall({ name }: AgentCallProps) {
+  return (
+    <motion.div
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className="flex items-center space-x-2 p-2 bg-white rounded-lg shadow-md"
+    >
+      <div className="w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold">
+        {name.charAt(0)}
+      </div>
+      <span className="font-semibold">{name}</span>
+    </motion.div>
+  );
+}
+
+// Hardcoded chat sequence for demo
+const HARDCODED_SEQUENCE = [
+  { role: 'system', content: "Bienvenue dans le Générateur d'examens pour Biologie introductive!\nQue souhaitez-vous créer aujourd'hui?" },
+  { role: 'user', content: "Un examen pour Biologie introductive." },
+  { role: 'system', content: "Très bien!\nQuels objectifs d'apprentissage voulez-vous évaluer?" },
+  { role: 'user', content: "La structure cellulaire et les organites." },
+  { role: 'system', content: "Le niveau d'application de Bloom semble adapté.\nVoulez-vous cibler ce niveau?" },
+  { role: 'user', content: "Je préfère viser l'analyse." },
+  { role: 'system', content: "Je comprends votre préférence pour le niveau d'analyse. \nCependant, comme il s'agit d'un cours introductif, combiner application et analyse s'adapte mieux aux détails de votre cours et aux objectifs d'apprentissage que vous avez fournis, en permettant aux étudiants de d'abord appliquer les concepts de base avant d'analyser en profondeur. \n\nCela vous convient-il?" },
+  { role: 'user', content: "Oui, parfait." },
+  { role: 'system', content: "Super!\nJe vais générer un examen avec des questions d'application et d'analyse sur la cellule.\nVoulez-vous ajouter d'autres critères?" },
+  { role: 'user', content: "Non, c'est tout." },
+  { role: 'system', content: "Voici un examen qui combine application et analyse,\naxé sur la structure cellulaire et les organites:" },
+  { role: 'user', content: "Rends la question 2 plus facile." },
+  { role: 'system', content: "Question 2 simplifiée.\nVoici la version mise à jour de l'examen." }
+];
+
+// Generated exam artifact
+const EXAM_ARTIFACT = {
+  title: "Examen de Biologie introductive",
+  course: "BIO 101 : Biologie introductive",
+  duration: "2 heures",
+  instructions: "Répondez à toutes les questions. Justifiez vos réponses pour obtenir tous les points.",
+  questions: [
+    { id: "q1", type: "Application", text: "Un patient présente des symptômes liés à un dysfonctionnement mitochondrial. \nExpliquez comment une anomalie des mitochondries peut affecter le métabolisme cellulaire et proposez une expérience pour tester cette hypothèse.", points: 10, difficulty: "Moyen" },
+    { id: "q2", type: "Analyse", text: "Comparez la structure et la fonction du réticulum endoplasmique rugueux et lisse. \nDonnez un exemple de situation où chaque type serait particulièrement important dans une cellule spécialisée.", points: 15, difficulty: "Difficile" },
+    { id: "q3", type: "Application", text: "Un biologiste observe une cellule qui ne parvient pas à produire suffisamment de protéines.\nIdentifiez deux organites qui pourraient être responsables et justifiez votre réponse.", points: 10, difficulty: "Moyen" }
+  ]
+};
+
+// Sidebar initial parameters
+const initialTaskParameters = {
+  course: 'Biologie introductive',
+  outputType: '',
+  learningObjectives: '',
+  bloomsLevel: '',
+};
+
+// Thinking bubble messages
+const THINKING_CHAT = [
+  '',
+  "Analyse de la demande...",
+  "Analyse des objectifs...",
+  "Réflexion sur le niveau...",
+  "Génération des questions...",
+  "Compilation de l'examen...",
+  "Prêt pour les modifications..."
+];
+
+const Generate: React.FC = () => {
+  const [step, setStep] = useState(0);
+  const [currentAgent, setCurrentAgent] = useState(AGENT_NAMES[0]);
+  const [messages, setMessages] = useState([{ id: '0', role: 'system', content: HARDCODED_SEQUENCE[0].content, timestamp: new Date() }]);
+  const [input, setInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showExam, setShowExam] = useState(false);
+  const [taskParameters, setTaskParameters] = useState(initialTaskParameters);
+  const [showThinkingBubble, setShowThinkingBubble] = useState(false);
+  const [thinkingStep, setThinkingStep] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      subject: "",
-      level: "",
-      topic: "",
-      duration: 60,
-      instructions: "",
-    },
-  });
+  // Scroll when messages update
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  // Update current agent badge
+  useEffect(() => {
+    setCurrentAgent(AGENT_NAMES[Math.min(step, AGENT_NAMES.length - 1)]);
+  }, [step]);
+
+  const handleSendMessage = () => {
+    if (!input.trim()) return;
+    const userMsg = { id: Date.now().toString(), role: 'user', content: input, timestamp: new Date() };
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
     setIsGenerating(true);
-    
-    // Simuler l'appel à un modèle IA (remplacer par un vrai appel d'API)
+    setShowThinkingBubble(true);
+    setThinkingStep(THINKING_CHAT[Math.min(step + 1, THINKING_CHAT.length - 1)]);
+
     setTimeout(() => {
-      const sampleEvaluation = `# Évaluation de ${values.subject} - ${values.level}
-      
-## Sujet : ${values.topic}
-Durée : ${values.duration} minutes
-
-### Instructions
-${values.instructions || "Répondez aux questions suivantes. Tous les documents sont autorisés."}
-
-### Questions
-
-1. **Question 1 (5 points)**
-   Définissez le concept principal abordé dans le chapitre sur ${values.topic}.
-
-2. **Question 2 (5 points)**
-   Expliquez les différentes approches théoriques liées à ${values.topic}.
-
-3. **Exercice 1 (7 points)**
-   Résolvez le problème suivant en détaillant toutes les étapes de votre raisonnement.
-   [Énoncé de l'exercice lié au sujet ${values.topic}]
-
-4. **Exercice 2 (8 points)**
-   Analysez le document suivant et répondez aux questions.
-   [Document ou cas d'étude lié au sujet ${values.topic}]
-
-5. **Question de synthèse (5 points)**
-   En quoi les concepts étudiés dans ${values.topic} sont-ils applicables dans un contexte réel?
-   Donnez au moins deux exemples concrets.
-      `;
-      
-      setGeneratedContent(sampleEvaluation);
-      setIsGenerating(false);
-      
-      toast({
-        title: "Évaluation générée avec succès",
-        description: "Vous pouvez maintenant modifier, copier ou télécharger votre évaluation.",
-      });
-    }, 2000);
+      setThinkingStep('');
+      setTimeout(() => {
+        setShowThinkingBubble(false);
+        handleBotResponse(userMsg.content);
+        setIsGenerating(false);
+      }, 800);
+    }, 800);
   };
 
+  const handleBotResponse = (userInput: string) => {
+    let nextStep = step;
+    let nextMessages: typeof messages = [];
+    let nextParams = { ...taskParameters };
+    let shouldShow = false;
+    let shouldUpdate = false;
+
+    switch (step) {
+      case 0:
+        if (userInput.toLowerCase().includes('examen')) {
+          nextParams = { ...nextParams, outputType: 'Examen' };
+        }
+        nextStep = 1;
+        nextMessages = [{ id: Date.now().toString(), role: 'system', content: HARDCODED_SEQUENCE[2].content, timestamp: new Date() }];
+        break;
+      case 1:
+        nextParams = { ...nextParams, learningObjectives: userInput };
+        nextStep = 2;
+        nextMessages = [{ id: Date.now().toString(), role: 'system', content: HARDCODED_SEQUENCE[4].content, timestamp: new Date() }];
+        break;
+      case 2:
+        nextStep = 3;
+        nextMessages = [{ id: Date.now().toString(), role: 'system', content: HARDCODED_SEQUENCE[6].content, timestamp: new Date() }];
+        break;
+      case 3:
+        if (/oui|parfait/i.test(userInput)) {
+          nextParams = { ...nextParams, bloomsLevel: 'Application et Analyse' };
+        }
+        nextStep = 4;
+        nextMessages = [{ id: Date.now().toString(), role: 'system', content: HARDCODED_SEQUENCE[8].content, timestamp: new Date() }];
+        break;
+      case 4:
+        nextStep = 5;
+        nextMessages = [{ id: Date.now().toString(), role: 'system', content: HARDCODED_SEQUENCE[10].content, timestamp: new Date() }];
+        shouldShow = true;
+        break;
+      case 5:
+        nextStep = 6;
+        nextMessages = [{ id: Date.now().toString(), role: 'system', content: HARDCODED_SEQUENCE[12].content, timestamp: new Date() }];
+        shouldUpdate = true;
+        break;
+      default:
+        nextMessages = [{ id: Date.now().toString(), role: 'system', content: "Voulez-vous modifier autre chose ?", timestamp: new Date() }];
+    }
+
+    setStep(nextStep);
+    setMessages(prev => [...prev, ...nextMessages]);
+    setTaskParameters(nextParams);
+    if (shouldShow) setShowExam(true);
+    if (shouldUpdate) {
+      EXAM_ARTIFACT.questions[1].text = "Expliquez brièvement la différence entre une cellule animale et une cellule végétale en vous concentrant sur trois organites spécifiques.";
+      EXAM_ARTIFACT.questions[1].difficulty = "Moyen";
+      EXAM_ARTIFACT.questions[1].type = "Application";
+    }
+  };
+
+  // Copy exam text to clipboard
   const copyToClipboard = () => {
-    if (generatedContent) {
-      navigator.clipboard.writeText(generatedContent);
-      toast({
-        title: "Contenu copié",
-        description: "Le contenu a été copié dans le presse-papier.",
-      });
-    }
+    const exam = EXAM_ARTIFACT;
+    const content = `${exam.title}\n${exam.course}\nDurée : ${exam.duration}\nConsignes : ${exam.instructions}\n\n${exam.questions.map((q, i) => `${i+1}. [${q.type} - ${q.points} pts] ${q.text}`).join('\n\n')}`;
+    navigator.clipboard.writeText(content);
+    toast({ title: "Contenu copié", description: "L'examen a été copié dans le presse-papiers." });
   };
 
+  // Download exam as text file
   const downloadAsText = () => {
-    if (generatedContent) {
-      const element = document.createElement("a");
-      const file = new Blob([generatedContent], {type: 'text/plain'});
-      element.href = URL.createObjectURL(file);
-      element.download = `evaluation-${form.getValues('subject')}-${new Date().toISOString().split('T')[0]}.txt`;
-      document.body.appendChild(element);
-      element.click();
-      document.body.removeChild(element);
-    }
+    const exam = EXAM_ARTIFACT;
+    const content = `${exam.title}\n${exam.course}\nDurée : ${exam.duration}\nConsignes : ${exam.instructions}\n\n${exam.questions.map((q, i) => `${i+1}. [${q.type} - ${q.points} pts] ${q.text}`).join('\n\n')}`;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${exam.course.replace(/\s+/g, '-').toLowerCase()}-examen.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: "Examen téléchargé", description: "L'examen a été téléchargé." });
   };
 
   return (
     <div className="min-h-screen flex flex-col">
       <NavBar />
-      
-      <div className="container mx-auto px-4 md:px-6 py-8">
-        <div className="flex items-center gap-2 mb-2">
-          <FileText className="h-5 w-5 text-ergi-primary" />
-          <h1 className="text-2xl font-bold">Générer une évaluation</h1>
-        </div>
-        <p className="text-gray-600 mb-8">
-          Spécifiez vos critères et notre IA créera une évaluation personnalisée.
-        </p>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Formulaire de génération */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Paramètres de l'évaluation</CardTitle>
-              <CardDescription>
-                Définissez les critères pour générer une évaluation adaptée à vos besoins.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="subject"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Matière</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Sélectionner une matière" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="mathematiques">Mathématiques</SelectItem>
-                              <SelectItem value="francais">Français</SelectItem>
-                              <SelectItem value="histoire">Histoire-Géographie</SelectItem>
-                              <SelectItem value="sciences">Sciences</SelectItem>
-                              <SelectItem value="anglais">Anglais</SelectItem>
-                              <SelectItem value="physique">Physique-Chimie</SelectItem>
-                              <SelectItem value="svt">SVT</SelectItem>
-                              <SelectItem value="technologie">Technologie</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="level"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Niveau</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Sélectionner un niveau" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="cp">CP</SelectItem>
-                              <SelectItem value="ce1">CE1</SelectItem>
-                              <SelectItem value="ce2">CE2</SelectItem>
-                              <SelectItem value="cm1">CM1</SelectItem>
-                              <SelectItem value="cm2">CM2</SelectItem>
-                              <SelectItem value="6eme">6ème</SelectItem>
-                              <SelectItem value="5eme">5ème</SelectItem>
-                              <SelectItem value="4eme">4ème</SelectItem>
-                              <SelectItem value="3eme">3ème</SelectItem>
-                              <SelectItem value="seconde">Seconde</SelectItem>
-                              <SelectItem value="premiere">Première</SelectItem>
-                              <SelectItem value="terminale">Terminale</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+      <div className="container mx-auto px-4 py-8">
+        <AgentCall name={currentAgent} />
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-1">
+            <Card className="sticky top-8">
+              <CardHeader><CardTitle>Paramètres de la tâche</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                {Object.entries(taskParameters).map(([key, value]) => (
+                  <div key={key}> 
+                    <h3 className="font-medium text-sm text-gray-500">{key.toUpperCase()}</h3>
+                    <p className="font-medium">{value || 'Non spécifié'}</p>
                   </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="topic"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Sujet de l'évaluation</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Ex: Les fractions, La conjugaison du passé simple" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          Précisez le thème spécifique de l'évaluation
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="duration"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Durée de l'évaluation (minutes): {field.value}</FormLabel>
-                        <FormControl>
-                          <Slider
-                            min={10}
-                            max={180}
-                            step={5}
-                            defaultValue={[field.value]}
-                            onValueChange={(values) => field.onChange(values[0])}
-                            className="pt-2"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Définissez la durée recommandée pour cette évaluation
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="instructions"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Instructions spécifiques (optionnel)</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Précisez toute instruction spéciale à inclure dans l'évaluation" 
-                            className="min-h-[100px]" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Ajoutez des consignes particulières ou des points à aborder
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="flex gap-2 pt-2">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      className="w-full"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Importer des documents
-                    </Button>
-                    <Button 
-                      type="submit" 
-                      className="w-full bg-ergi-primary hover:bg-ergi-dark"
-                      disabled={isGenerating}
-                    >
-                      {isGenerating ? (
-                        "Génération en cours..."
-                      ) : (
-                        <>
-                          Générer
-                          <ArrowRight className="h-4 w-4 ml-2" />
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-          
-          {/* Résultat de la génération */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Évaluation générée</CardTitle>
-              <CardDescription>
-                Votre évaluation apparaîtra ici une fois générée. Vous pourrez la modifier avant de la finaliser.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {generatedContent ? (
-                <div className="bg-gray-50 border rounded-md p-4 font-mono text-sm whitespace-pre-wrap min-h-[400px] max-h-[500px] overflow-y-auto">
-                  {generatedContent}
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+          <div className="lg:col-span-2 flex flex-col gap-6">
+            <Card className="flex flex-col h-[600px]">
+              <CardHeader className="border-b pb-4"><CardTitle>Discuter avec l'assistant IA</CardTitle></CardHeader>
+              <CardContent className="flex-grow overflow-auto p-4">
+                <div className="flex flex-col space-y-4">
+                  {messages.map(m => (
+                    <div key={m.id} className={cn('flex w-max max-w-[80%] rounded-lg px-4 py-2', m.role === 'user' ? 'ml-auto bg-ergi-primary text-white' : 'bg-gray-100')}>
+                      <span className="whitespace-pre-wrap">{m.content}</span>
+                    </div>
+                  ))}
+                  {showThinkingBubble && thinkingStep && (
+                    <div className="flex w-max max-w-[80%] rounded-lg px-4 py-2 bg-gray-100 animate-pulse">
+                      <span className="text-indigo-700">{thinkingStep}</span>
+                    </div>
+                  )}
+                  {isGenerating && !thinkingStep && (
+                    <div className="flex w-max max-w-[80%] rounded-lg px-4 py-2 bg-gray-100">...
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} />
                 </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center min-h-[400px] bg-gray-50 border rounded-md p-4 text-gray-400">
-                  <FileText className="h-16 w-16 mb-4 opacity-50" />
-                  <p>L'évaluation générée apparaîtra ici</p>
-                  <p className="text-sm mt-2">Complétez le formulaire et cliquez sur "Générer"</p>
-                </div>
-              )}
-            </CardContent>
-            {generatedContent && (
-              <CardFooter className="flex justify-end gap-2">
-                <Button variant="outline" onClick={copyToClipboard}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copier
-                </Button>
-                <Button variant="outline" onClick={downloadAsText}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Télécharger
-                </Button>
-                <Button className="bg-ergi-primary hover:bg-ergi-dark">
-                  Finaliser et enregistrer
+              </CardContent>
+              <CardFooter className="border-t p-4 flex items-center space-x-2">
+                <Input value={input} onChange={e => setInput(e.target.value)} placeholder="Tapez votre message..." onKeyDown={e => e.key === 'Enter' && handleSendMessage()} />
+                <Button onClick={handleSendMessage} disabled={isGenerating || !input.trim()} className="bg-ergi-primary hover:bg-ergi-dark">
+                  {isGenerating ? 'Envoi...' : <>Envoyer <Send className="h-4 w-4 ml-2"/></>}
                 </Button>
               </CardFooter>
+            </Card>
+            {showExam && (
+              <Card>
+                <CardHeader><CardTitle>Examen généré</CardTitle></CardHeader>
+                <CardContent className="space-y-4">...
+                </CardContent>
+                <CardFooter className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={copyToClipboard}><Copy className="h-4 w-4 mr-2"/>Copier</Button>
+                  <Button variant="outline" onClick={downloadAsText}><Download className="h-4 w-4 mr-2"/>Télécharger</Button>
+                  <Button className="bg-ergi-primary hover:bg-ergi-dark"><ArrowRight className="h-4 w-4 mr-2"/>Continuer l'édition</Button>
+                </CardFooter>
+              </Card>
             )}
-          </Card>
+          </div>
         </div>
       </div>
     </div>
