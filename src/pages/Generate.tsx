@@ -11,12 +11,12 @@ import { cn } from '@/lib/utils';
 // Names of each agent in the workflow
 type AgentCallProps = { name: string };
 const AGENT_NAMES = [
-  'MainAgent',
-  'ObjectiveAgent',
-  'PedagogyAgent',
-  'BloomAgent',
-  'QuestionAgent',
-  'ExamCreatorAgent',
+  'Agent Principal',
+  'Agent Objectifs',
+  'Agent Pédagogie',
+  'Agent Bloom',
+  'Agent Questions',
+  "Agent Créateur d'Examen", // Changed to French
 ];
 
 function AgentCall({ name }: AgentCallProps) {
@@ -89,6 +89,14 @@ const initialTaskParameters = {
   outputType: '',
   learningObjectives: '',
   bloomsLevel: '',
+};
+
+// Mapping for sidebar headers to French
+const sidebarHeaderMapping = {
+  course: "Cours",
+  outputType: "Type de Document",
+  learningObjectives: "Objectifs d'Apprentissage",
+  bloomsLevel: "Niveau de Bloom"
 };
 
 // Chat thinking bubble texts
@@ -208,7 +216,6 @@ const Generate = () => {
     }
     
     if (shouldUpdateExam) {
-      // Fixed line with syntax error
       EXAM_ARTIFACT.questions[1].text = "Expliquez brièvement la différence entre une cellule animale et une cellule végétale en vous concentrant sur trois organites spécifiques.";
       EXAM_ARTIFACT.questions[1].difficulty = "Moyen";
       EXAM_ARTIFACT.questions[1].type = "Application";
@@ -246,7 +253,9 @@ const Generate = () => {
               <CardContent className="space-y-4">
                 {Object.entries(taskParameters).map(([key, value]) => (
                   <div key={key}> 
-                    <h3 className="font-medium text-sm text-gray-500">{key.toUpperCase()}</h3>
+                    <h3 className="font-medium text-sm text-gray-500">
+                      {sidebarHeaderMapping[key] || key.charAt(0).toUpperCase() + key.slice(1)} {/* Use mapping, fallback to capitalized key */}
+                    </h3>
                     <p className="font-medium">{value || 'Non spécifié'}</p>
                   </div>
                 ))}
