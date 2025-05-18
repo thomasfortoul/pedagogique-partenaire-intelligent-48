@@ -1,36 +1,88 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion'; // Added AnimatePresence
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import NavBar from '@/components/NavBar';
-import { Send, Copy, Download, ArrowRight, MessageSquare } from 'lucide-react';
+import {
+  Send,
+  Copy,
+  Download,
+  ArrowRight,
+  // MessageSquare, // Not used directly anymore, specific icons are used for agents
+  Workflow,       // Icon for Agent Principal
+  Target,         // Icon for Agent Objectifs
+  BookOpen,       // Icon for Agent Pédagogie
+  Layers,         // Icon for Agent Bloom
+  MessageCircleQuestion, // Icon for Agent Questions
+  ClipboardEdit,  // Icon for Agent Créateur d'Examen
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// Names of each agent in the workflow
-type AgentCallProps = { name: string };
-const AGENT_NAMES = [
-  'Agent Principal',
-  'Agent Objectifs',
-  'Agent Pédagogie',
-  'Agent Bloom',
-  'Agent Questions',
-  "Agent Créateur d'Examen", // Changed to French
+// Interface for Agent Data
+interface AgentData {
+  id: string;
+  name: string;
+  description: string;
+  icon: React.ReactElement;
+}
+
+// Data for each agent in the workflow including icons and descriptions
+const AGENTS_DATA: AgentData[] = [
+  {
+    id: 'principal',
+    name: 'Agent Principal',
+    icon: <Workflow size={32} className="text-indigo-500" />,
+    description: "Coordonne la tâche et l'équipe.",
+  },
+  {
+    id: 'objectifs',
+    name: 'Agent Objectifs',
+    icon: <Target size={32} className="text-teal-500" />,
+    description: "Expert en définition d'objectifs pédagogiques.",
+  },
+  {
+    id: 'pedagogie',
+    name: 'Agent Pédagogie',
+    icon: <BookOpen size={32} className="text-blue-500" />,
+    description: 'Spécialiste des approches et stratégies didactiques.',
+  },
+  {
+    id: 'bloom',
+    name: 'Agent Bloom',
+    icon: <Layers size={32} className="text-purple-500" />,
+    description: 'Maître de la taxonomie de Bloom et des niveaux cognitifs.',
+  },
+  {
+    id: 'questions',
+    name: 'Agent Questions',
+    icon: <MessageCircleQuestion size={32} className="text-orange-500" />,
+    description: 'Concepteur de questions pertinentes et évaluatives.',
+  },
+  {
+    id: 'createur',
+    name: "Agent Créateur d'Examen",
+    icon: <ClipboardEdit size={32} className="text-red-500" />,
+    description: "Assembleur final de l'examen structuré.",
+  },
 ];
 
-function AgentCall({ name }: AgentCallProps) {
+type AgentCallProps = { agent: AgentData };
+
+function AgentCall({ agent }: AgentCallProps) {
   return (
     <motion.div
-      initial={{ scale: 0.8, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ duration: 0.3 }}
-      className="flex items-center space-x-2 p-2 bg-white rounded-lg shadow-md"
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1, transition: { duration: 0.4, ease: "easeOut" } }}
+      exit={{ opacity: 0, y: -20, scale: 0.95, transition: { duration: 0.3, ease: "easeIn" } }}
+      className="flex flex-col items-center p-4 bg-white rounded-xl shadow-lg text-center min-h-[150px] border border-gray-200"
     >
-      <div className="w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold">
-        {name.charAt(0)}
+      <div className="mb-3 transform transition-transform duration-300 group-hover:scale-110">
+        {agent.icon}
       </div>
-      <span className="font-semibold">{name}</span>
+      <h3 className="font-semibold text-md mb-1 text-gray-800">{agent.name}</h3>
+      <p className="text-xs text-gray-500 px-2">{agent.description}</p>
     </motion.div>
   );
 }
@@ -91,7 +143,6 @@ const initialTaskParameters = {
   bloomsLevel: '',
 };
 
-// Mapping for sidebar headers to French
 const sidebarHeaderMapping = {
   course: "Cours",
   outputType: "Type de Document",
@@ -99,20 +150,21 @@ const sidebarHeaderMapping = {
   bloomsLevel: "Niveau de Bloom"
 };
 
-// Chat thinking bubble texts
+// Chat thinking bubble texts - aligned with AGENTS_DATA flow
 const THINKING_CHAT = [
-  '',
-  "Analyse de la demande...",
-  "Analyse des objectifs...",
-  "Réflexion sur le niveau...",
-  "Génération des questions...",
-  "Compilation de l'examen...",
-  "Prêt pour les modifications..."
+  "Préparation de l'environnement...", // Initial step 0
+  "Analyse de la demande par l'Agent Principal...", // After user input for step 0 -> agent 0
+  "Définition des objectifs par l'Agent Objectifs...", // After user input for step 1 -> agent 1
+  "Consultation de l'Agent Pédagogie...", // After user input for step 2 -> agent 2
+  "Évaluation du niveau par l'Agent Bloom...", // After user input for step 3 -> agent 3
+  "Génération des questions par l'Agent Questions...", // After user input for step 4 -> agent 4
+  "Compilation de l'examen par l'Agent Créateur...", // After user input for step 5 -> agent 5
+  "Finalisation et prêt pour modifications..." // Default/Final step
 ];
 
 const Generate = () => {
   const [step, setStep] = useState(0);
-  const [currentAgent, setCurrentAgent] = useState(AGENT_NAMES[0]);
+  const [currentAgent, setCurrentAgent] = useState<AgentData>(AGENTS_DATA[0]);
   const [messages, setMessages] = useState([
     { id: '0', role: 'system', content: HARDCODED_SEQUENCE[0].content, timestamp: new Date() }
   ]);
@@ -122,18 +174,16 @@ const Generate = () => {
   const [taskParameters, setTaskParameters] = useState(initialTaskParameters);
   const [showThinkingBubble, setShowThinkingBubble] = useState(false);
   const [thinkingStep, setThinkingStep] = useState('');
-  const messagesEndRef = useRef(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  // Auto-scroll to bottom on new message
   useEffect(() => {
     if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Update agent badge based on current step
   useEffect(() => {
-    const idx = Math.min(step, AGENT_NAMES.length - 1);
-    setCurrentAgent(AGENT_NAMES[idx]);
+    const idx = Math.min(step, AGENTS_DATA.length - 1);
+    setCurrentAgent(AGENTS_DATA[idx]);
   }, [step]);
 
   const handleSendMessage = () => {
@@ -148,20 +198,20 @@ const Generate = () => {
     setInput('');
     setIsGenerating(true);
     setShowThinkingBubble(true);
+    // Use step for current agent, step + 1 for the agent *processing* this input
     setThinkingStep(THINKING_CHAT[Math.min(step + 1, THINKING_CHAT.length - 1)]);
 
     setTimeout(() => {
-      setThinkingStep('');
+      setThinkingStep(''); // This will trigger the "..." via the render logic below
       setTimeout(() => {
         setShowThinkingBubble(false);
         handleBotResponse(newUserMessage.content);
         setIsGenerating(false);
-      }, 800);
-    }, 800);
+      }, 1500); // Increased duration for "..."
+    }, 1500); // Increased duration for specific thinking message
   };
 
-  // Core logic for advancing chat and managing exam generation
-  const handleBotResponse = (userInput) => {
+  const handleBotResponse = (userInput: string) => {
     let nextStep = step;
     let nextMessages = [];
     let nextTaskParameters = { ...taskParameters };
@@ -197,12 +247,12 @@ const Generate = () => {
         nextMessages = [{ id: Date.now().toString(), role: 'system', content: HARDCODED_SEQUENCE[10].content, timestamp: new Date() }];
         shouldShowExam = true;
         break;
-      case 5:
-        nextStep = 6;
+      case 5: // Corresponds to "Agent Créateur d'Examen"
+        nextStep = 6; // To show a final message or allow further edits
         nextMessages = [{ id: Date.now().toString(), role: 'system', content: HARDCODED_SEQUENCE[12].content, timestamp: new Date() }];
         shouldUpdateExam = true;
         break;
-      default:
+      default: // Step 6 or more
         nextMessages = [{ id: Date.now().toString(), role: 'system', content: "Voulez-vous modifier autre chose ?", timestamp: new Date() }];
         break;
     }
@@ -211,9 +261,7 @@ const Generate = () => {
     setMessages(prev => [...prev, ...nextMessages]);
     setTaskParameters(nextTaskParameters);
     
-    if (shouldShowExam) {
-      setShowExam(true);
-    }
+    if (shouldShowExam) setShowExam(true);
     
     if (shouldUpdateExam) {
       EXAM_ARTIFACT.questions[1].text = "Expliquez brièvement la différence entre une cellule animale et une cellule végétale en vous concentrant sur trois organites spécifiques.";
@@ -242,91 +290,127 @@ const Generate = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <NavBar />
-      <div className="container mx-auto px-4 py-8">
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Sidebar with task parameters */}
-          <div className="lg:col-span-1 flex flex-col gap-4">
-            <Card className="sticky top-8">
-              <CardHeader><CardTitle>Paramètres de la tâche</CardTitle></CardHeader>
+      <div className="container mx-auto px-4 py-8 flex-grow">
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+          {/* Sidebar with task parameters & Agent display */}
+          <div className="lg:col-span-1 flex flex-col gap-6 sticky top-24"> {/* Added sticky top */}
+            <Card>
+              <CardHeader><CardTitle className="text-lg">Paramètres de la Tâche</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 {Object.entries(taskParameters).map(([key, value]) => (
                   <div key={key}> 
                     <h3 className="font-medium text-sm text-gray-500">
-                      {sidebarHeaderMapping[key] || key.charAt(0).toUpperCase() + key.slice(1)} {/* Use mapping, fallback to capitalized key */}
+                      {sidebarHeaderMapping[key as keyof typeof sidebarHeaderMapping] || key.charAt(0).toUpperCase() + key.slice(1)}
                     </h3>
-                    <p className="font-medium">{value || 'Non spécifié'}</p>
+                    <p className="font-semibold text-gray-700">{value || <span className="italic text-gray-400">Non spécifié</span>}</p>
                   </div>
                 ))}
               </CardContent>
             </Card>
             
-            {/* Agent moved to below sidebar */}
-            <div className="mt-2">
-              <AgentCall name={currentAgent} />
+            <div className="mt-2"> {/* Agent display area */}
+              <AnimatePresence mode="wait">
+                {/* The key here is crucial for AnimatePresence */}
+                <AgentCall key={currentAgent.id} agent={currentAgent} />
+              </AnimatePresence>
             </div>
           </div>
           
           {/* Chat area */}
           <div className="lg:col-span-2 flex flex-col gap-6">
-            <Card className="flex flex-col h-[600px]">
-              <CardHeader className="border-b pb-4"><CardTitle>Discuter avec l'assistant IA</CardTitle></CardHeader>
-              <CardContent className="flex-grow overflow-auto p-4">
-                <div className="flex flex-col space-y-4">
+            <Card className="flex flex-col h-[calc(100vh-200px)] max-h-[700px] shadow-xl"> {/* Adjusted height */}
+              <CardHeader className="border-b pb-4"><CardTitle className="text-lg">Discuter avec l'Assistant IA</CardTitle></CardHeader>
+              <CardContent className="flex-grow overflow-auto p-4 space-y-4">
                   {messages.map(m => (
-                    <div key={m.id} className={cn('flex w-max max-w-[80%] rounded-lg px-4 py-2', m.role === 'user' ? 'ml-auto bg-ergi-primary text-white' : 'bg-gray-100')}> 
+                    <div key={m.id} className={cn(
+                      'flex w-max max-w-[85%] rounded-xl px-4 py-3 text-sm shadow-sm', 
+                      m.role === 'user' 
+                        ? 'ml-auto bg-ergi-primary text-white rounded-br-none' 
+                        : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'
+                    )}> 
                       <span className="whitespace-pre-wrap">{m.content}</span>
                     </div>
                   ))}
                   {showThinkingBubble && thinkingStep && (
-                    <div className="flex w-max max-w-[80%] rounded-lg px-4 py-2 bg-gray-100 animate-pulse">
-                      <span className="text-indigo-700">{thinkingStep}</span>
+                    <div className="flex w-max max-w-[85%] rounded-xl px-4 py-3 bg-gray-100 border border-gray-200 shadow-sm animate-pulse">
+                      <span className="text-indigo-600 text-sm italic">{thinkingStep}</span>
                     </div>
                   )}
-                  {isGenerating && !thinkingStep && (
-                    <div className="flex w-max max-w-[80%] rounded-lg px-4 py-2 bg-gray-100">...
+                  {isGenerating && !thinkingStep && showThinkingBubble && ( // Shows "..." when thinkingStep is cleared
+                    <div className="flex items-center w-max max-w-[85%] rounded-xl px-4 py-3 bg-gray-100 border border-gray-200 shadow-sm">
+                      <span className="text-sm text-gray-500 italic">Réflexion</span>
+                      <motion.div className="flex space-x-1 ml-2"
+                        animate={{ opacity: [0.5, 1, 0.5] }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
+                      >
+                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
+                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animation-delay-200"></div>
+                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animation-delay-400"></div>
+                      </motion.div>
                     </div>
                   )}
                   <div ref={messagesEndRef} />
-                </div>
               </CardContent>
-              <CardFooter className="border-t p-4 flex items-center space-x-2">
-                <Input value={input} onChange={e => setInput(e.target.value)} placeholder="Tapez votre message..." onKeyDown={e => e.key==='Enter' && handleSendMessage()} />
-                <Button onClick={handleSendMessage} disabled={isGenerating || !input.trim()}
-                  className="bg-ergi-primary hover:bg-ergi-dark">
-                  {isGenerating ? 'Envoi...' : <>Envoyer <Send className="h-4 w-4 ml-2"/></>}
+              <CardFooter className="border-t p-4 flex items-center space-x-3">
+                <Input 
+                  value={input} 
+                  onChange={e => setInput(e.target.value)} 
+                  placeholder="Posez une question ou donnez une instruction..." 
+                  onKeyDown={e => e.key==='Enter' && !isGenerating && handleSendMessage()} 
+                  className="flex-grow"
+                  disabled={isGenerating}
+                />
+                <Button 
+                  onClick={handleSendMessage} 
+                  disabled={isGenerating || !input.trim()}
+                  className="bg-ergi-primary hover:bg-ergi-dark px-5 py-2.5"
+                >
+                  {isGenerating ? (
+                    <>
+                      <motion.div 
+                        animate={{ rotate: 360 }} 
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                       />
+                      Envoi...
+                    </>
+                  ) : (
+                    <>Envoyer <Send className="h-4 w-4 ml-2"/></>
+                  )}
                 </Button>
               </CardFooter>
             </Card>
             
-            {/* Generated exam display */}
             {showExam && (
-              <Card>
-                <CardHeader><CardTitle>Examen généré</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                  <h2 className="text-xl font-bold">{EXAM_ARTIFACT.title}</h2>
-                  <p className="text-gray-600">{EXAM_ARTIFACT.course}</p>
-                  <p className="text-gray-600">Durée : {EXAM_ARTIFACT.duration}</p>
-                  <p className="font-medium">Consignes : {EXAM_ARTIFACT.instructions}</p>
-                  <div className="space-y-6 mt-4">
-                    {EXAM_ARTIFACT.questions.map((q, i) => (
-                      <div key={q.id} className="border-l-4 border-ergi-primary pl-4 py-2">
-                        <div className="flex justify-between">
-                          <h3 className="font-bold">Question {i+1} ({q.points} pts)</h3>
-                          <span className="text-sm bg-gray-100 px-2 py-1 rounded">{q.type} | {q.difficulty}</span>
+              <motion.div initial={{ opacity: 0, y:20 }} animate={{ opacity: 1, y:0 }} transition={{duration: 0.5}}>
+                <Card className="shadow-xl">
+                  <CardHeader><CardTitle className="text-lg">Examen Généré</CardTitle></CardHeader>
+                  <CardContent className="space-y-4">
+                    <h2 className="text-xl font-bold text-ergi-primary">{EXAM_ARTIFACT.title}</h2>
+                    <p className="text-gray-600">{EXAM_ARTIFACT.course}</p>
+                    <p className="text-sm text-gray-500">Durée : {EXAM_ARTIFACT.duration}</p>
+                    <p className="font-medium text-gray-700">Consignes : <span className="font-normal">{EXAM_ARTIFACT.instructions}</span></p>
+                    <div className="space-y-6 mt-6">
+                      {EXAM_ARTIFACT.questions.map((q, i) => (
+                        <div key={q.id} className="border-l-4 border-ergi-primary pl-4 py-3 bg-white rounded-r-md shadow-sm">
+                          <div className="flex justify-between items-center mb-1">
+                            <h3 className="font-semibold text-gray-800">Question {i+1} <span className="font-normal text-gray-600">({q.points} pts)</span></h3>
+                            <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-medium">{q.type} | {q.difficulty}</span>
+                          </div>
+                          <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap">{q.text}</p>
                         </div>
-                        <p className="mt-2 whitespace-pre-wrap">{q.text}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={copyToClipboard}><Copy className="h-4 w-4 mr-2"/>Copier</Button>
-                  <Button variant="outline" onClick={downloadAsText}><Download className="h-4 w-4 mr-2"/>Télécharger</Button>
-                  <Button className="bg-ergi-primary hover:bg-ergi-dark"><ArrowRight className="h-4 w-4 mr-2"/>Continuer l'édition</Button>
-                </CardFooter>
-              </Card>
+                      ))}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex justify-end gap-3 pt-6">
+                    <Button variant="outline" onClick={copyToClipboard}><Copy className="h-4 w-4 mr-2"/>Copier</Button>
+                    <Button variant="outline" onClick={downloadAsText}><Download className="h-4 w-4 mr-2"/>Télécharger</Button>
+                    <Button className="bg-ergi-primary hover:bg-ergi-dark"><ArrowRight className="h-4 w-4 mr-2"/>Continuer l'édition</Button>
+                  </CardFooter>
+                </Card>
+              </motion.div>
             )}
           </div>
         </div>
