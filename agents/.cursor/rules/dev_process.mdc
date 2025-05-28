@@ -1,0 +1,23 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Here is a rule you can use to guide the development process and ensure consistent, step-by-step progress tracking:
+
+---
+**Rule Name:** development_process
+
+**Description:**  
+Follow a structured, iterative development process using the project outline and task checklist. Always update the checklist as tasks are completed, and use external documentation as needed.
+
+**Rule Content:**
+
+- Always follow the step-by-step tasks outlined in `tasks.txt`, using `agents.txt` and `prd.txt` for context and requirements. 
+- After completing each task, update `tasks.txt` by crossing out (striking through) the finished task.
+- Only proceed to the next task after the current one is fully completed and marked as such.
+- If additional reference or clarification is needed at any step, use the Perplexity MCP (or equivalent) to consult the most relevant documentation, especially the Google ADK docs.
+- **Always refer to [HEC Montréal's pedagogical resource](mdc:https:/enseigner.hec.ca/pedagogie) to inform the agent logic, design, and workflow.**
+- Maintain a clear, auditable record of progress by keeping `tasks.txt` up to date.
+- Do not skip tasks or reorder them unless explicitly instructed.
+- Always ensure that the implementation aligns with the requirements and principles described in `project.txt` and `prd.txt`.

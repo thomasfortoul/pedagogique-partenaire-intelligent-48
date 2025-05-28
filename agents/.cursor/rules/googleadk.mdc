@@ -1,0 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Cursor Rule: Google Agent Development Kit (ADK) Documentation
+
+**Whenever you need to reference documentation for developing with Google's Agent Development Kit (ADK), use the following links:**
+
+- [ADK API Reference](mdc:https:/google.github.io/adk-docs/api-reference/index.html)
+- [ADK Main Documentation](mdc:https:/google.github.io/adk-docs)
+
+_Keep these links handy for all development, troubleshooting, and best practices regarding Google ADK._

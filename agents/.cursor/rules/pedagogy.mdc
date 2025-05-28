@@ -1,0 +1,19 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Rule Name: pedagogy
+
+**Description:**  
+All agent logic, workflow, and recommendations must be informed by the pedagogical best practices, strategies, and evaluation methods described at [HEC Montréal's pedagogical resource](mdc:https:/enseigner.hec.ca/pedagogie).
+
+**Rule Content:**
+
+- When designing or updating agents, always consult [HEC Montréal's pedagogical resource](mdc:https:/enseigner.hec.ca/pedagogie) for:
+  - Course planning and alignment
+  - Pedagogical strategies (e.g., active learning, inclusive pedagogy, teamwork)
+  - Assessment and evaluation methods
+  - Engagement and motivation techniques
+  - Accessibility and inclusivity considerations
+- Ensure all generated content, recommendations, and workflows are pedagogically sound and contextually relevant.

@@ -1,0 +1,26 @@
+1.	AI-Powered Exam & Course Outline Generation:
+o	What it does: Enables teachers to automatically generate exercises, quizzes, complete exams, and course outlines. The AI leverages summarized course information and actively prompts the user for details to ensure high-quality, pedagogically sound, and aligned outputs.
+o	Why it's important: Drastically reduces the time spent on creating evaluation and preparation materials, allowing teachers to focus on pedagogy. Ensures strong alignment between course objectives (including Bloom's Taxonomy levels), taught content, and assessment methods.
+o	How it works:
+	The teacher interacts with ERGI within the context of a specific course. Instead of storing full documents, uploaded course documents (e.g., syllabi, past exams, notes) are thoroughly summarized, and key fields/information are extracted and stored internally in the database for that course.
+	Through the Chat Interface (see below) or by selecting a task from pre-defined categories (Presentation, Preparation, Evaluation), the teacher initiates the creation process.
+	The AI, leveraging the summarized course context and specified parameters, engages in a dialogue:
+	Thorough Material Evaluation & Prompting: The AI actively assesses the available information for the task. It will prompt the user for missing critical information or clarifications (e.g., "To create an effective exam for 'Linear Algebra,' could you specify the key learning objectives you want to assess?" or "What Bloom's Taxonomy level should these questions target?").
+	Learning Objective Alignment (Bloom's Taxonomy): A core function is to help define or confirm learning objectives based on Bloom's Taxonomy. The AI will prompt the user for this, pull information from course-defined objectives (if summarized), and strive to ensure that generated content (e.g., exam questions) aligns with the intended cognitive levels.
+	The teacher specifies parameters: type of evaluation/document, scope, specific learning objectives and their Bloom's level, format.
+	The AI generates a draft.
+	The teacher reviews, edits, requests modifications (e.g., "make question 3 target a 'higher-order thinking' level," "add a section on X theory"), or regenerates parts via the chat interface.
+	The finalized document can be exported (e.g., PDF, Word).
+2.	Advanced Chat Interface (ideally using google-adk package concepts):
+o	What it does: Provides the primary interaction method for teachers to command, configure, and refine AI-generated content. Designed for a modular, contextual, and transparent experience.
+o	Why it's important: Offers a natural, flexible, and powerful way to interact with the AI. The design anticipates a modular agent-based approach for specialized task handling.
+o	How it works (conceptualizing with google-adk principles):
+	Modular Task Handling (Conceptual): While full google-adk use, the design will reflect its principles. The chat will be orchestrated to handle different tasks (e.g., "Exam Creation," "Outline Generation") as if by specialized agents.
+	Context Management:
+	Course Context: Operates within the selected course, using its summarized information.
+	Task Context: Builds from user specifications and AI prompts.
+	Dynamic Output Quality Indicator: A visual element indicating the potential quality/completeness of the AI's output based on information provided.
+	Interaction Summary Sidebar: A persistent sidebar summarizing current task parameters (course, output type, key details) to ensure alignment.
+	Confirmation & Generation: Teacher confirms parameters; AI generates the artifact.
+	Iterative Refinement: Teacher requests modifications via chat.
+	Export: Teacher exports the finalized document.

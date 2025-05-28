@@ -1,0 +1,184 @@
+Here are 10 concrete tasks, each with a checklist, to guide and evaluate your implementation of the AI-powered exam & course outline generation system using Google ADK principles. These tasks are designed to be actionable and measurable, ensuring you cover all critical aspects of the project.
+
+---
+
+### 1. **Project Initialization**
+- [x] Set up a new Python project with a virtual environment.
+- [x] Create a `requirements.txt` and add `google-adk` and other dependencies.
+- [x] Initialize a Git repository and set up `.gitignore`.
+- [x] Establish the recommended folder structure.
+
+---
+
+### 2. **Install and Configure Google ADK**
+- [x] Install the `google-adk` package.
+- [x] Verify installation by running a sample agent.
+- [x] Review [ADK Installation Guide](https://google.github.io/adk-docs/getting-started/installation/).
+- [x] Add ADK configuration to `.env` or config files as needed.
+
+---
+
+### 3. **Design Core Data Models**
+- [x] Define a `Course` model (summarized info, objectives, Bloom's levels).
+- [x] Define a `Task/Document` model (exercises, quizzes, exams, outlines).
+- [x] Define a `UserInteractionState` model (chat context, current task).
+- [x] Write unit tests for each model.
+
+---
+
+### 4. **Implement Document Summarization Pipeline**
+- [x] Create an ADK agent for document upload and summarization.
+- [x] Implement tools for extracting objectives, topics, and Bloom's levels.
+- [x] Store extracted data in the course context.
+- [x] Test with sample syllabi and notes.
+
+---
+
+### 5. **Develop Modular ADK Agents**
+- [x] Create agents for: Summarization, Exam Generation, Outline Generation, Bloom's Alignment.
+- [x] Write clear descriptions and instructions for each agent.
+- [x] Register and test each agent in the ADK framework.
+- [x] Reference [ADK Agent API](https://google.github.io/adk-docs/api-reference/agents/).
+
+---
+
+### 6. **Build the Chat Interface**
+- [ ] Design a basic chat UI (web or desktop).
+- [ ] Integrate chat with ADK agents for task routing.
+- [ ] Display and update context (course, task, parameters) in the UI.
+- [ ] Support iterative refinement (regenerate, modify, etc.).
+
+---
+
+### 7. **Implement Output Quality Indicator**
+- [ ] Define criteria for output quality (completeness, alignment).
+- [ ] Add a visual indicator (progress bar, color code) to the UI.
+- [ ] Update indicator dynamically as user provides more info.
+- [ ] Test indicator with various input scenarios.
+
+---
+
+### 8. **Create Interaction Summary Sidebar**
+- [ ] Design a sidebar to show current course, output type, and key parameters.
+- [ ] Ensure sidebar updates in real-time with user actions.
+- [ ] Test sidebar for clarity and usability.
+
+---
+
+### 9. **Enable Export Functionality**
+- [ ] Implement export to PDF and Word for generated documents.
+- [ ] Ensure formatting and content integrity in exports.
+- [ ] Reference [ADK Output Handling](https://google.github.io/adk-docs/api-reference/output/).
+- [ ] Test export with different document types.
+
+---
+
+### 10. **Testing, Feedback, and Iteration**
+- [ ] Write unit and integration tests for all major components.
+- [ ] Conduct user testing with teachers or stakeholders.
+- [ ] Collect feedback and identify areas for improvement.
+- [ ] Iterate on design and implementation based on feedback.
+
+---
+
+**Tip:** For any step involving ADK, refer to the official documentation:  
+- [ADK API Reference](https://google.github.io/adk-docs/api-reference/index.html)  
+- [ADK Main Documentation](https://google.github.io/adk-docs/)
+
+# Agentic Workflow Development Tasks (Based on agents.txt)
+
+---
+
+## 1. System Architecture & Agent Design
+
+- [x] Review and finalize the overall agentic system architecture.
+- [x] Define agent types and roles (LlmAgent, SequentialAgent, LoopAgent, RoutingAgent, ParallelAgent).
+- [x] Document the rationale for each agent type and orchestration pattern.
+
+---
+
+## 2. Core Agent Implementation
+
+### 2.1 LlmAgent-based Agents
+
+- [x] Implement LearningObjectiveAgent (drafts Bloom-aligned objectives).
+- [x] Implement SyllabusPlannerAgent (structures modules/sessions).
+- [x] Implement AssessmentGeneratorAgent (creates MCQs, open-ended, case studies).
+
+### 2.2 SequentialAgent-based Agents
+
+- [x] Implement CoursePrepWorkflowAgent (NeedsAnalysis → ObjectiveDraft → StructureProposal).
+
+### 2.3 LoopAgent-based Agents
+
+- [x] Implement ObjectiveRefinementAgent (iterative refinement until approval/taxonomic balance).
+
+### 2.4 Routing & Parallel Agents
+
+- [x] Implement ContentRoutingAgent (LLM-driven dynamic routing).
+- [ ] Implement ParallelAgent for module-level parallelization (e.g., ResourceRecommendationAgents).
+
+---
+
+## 3. Orchestration & Protocols
+
+- [x] Implement phase-level sequencing (CoursePrepWorkflowAgent).
+- [ ] Implement module-level parallelization (ParallelAgent for resources).
+- [x] Implement Agent2Agent (A2A) protocol (Proposal/Review/Revision loop).
+- [x] Implement dynamic LLM routing for ad hoc user requests.
+
+---
+
+## 4. Tool & Service Integration
+
+- [x] Implement custom tools (SyllabusGeneratorTool, BloomAlignmentChecker, ResourceRecommenderTool, QuizGeneratorTool, etc.).
+- [ ] Integrate ADK built-in tools (search_tool, code_execution_tool).
+- [ ] Integrate external tools/APIs (LMS, Google Drive/Docs, etc.).
+
+---
+
+## 5. Session & Memory Management
+
+- [x] Implement SessionService (InMemorySessionService for dev, VertexAiSessionService for prod).
+- [x] Implement session state transitions and persistence.
+- [x] Implement MemoryService (InMemoryMemoryService, VertexAiRagMemoryService).
+- [x] Add/retrieve session data and knowledge (alignment rules, Bloom mappings, prior assessments).
+
+---
+
+## 6. Agent Communication & Guardrails
+
+- [x] Implement inter-agent messaging (ProposalMessage, ApprovalMessage, RevisionRequest).
+- [x] Implement error handling and guardrails (BloomAlignmentGuardrail, timeouts, retries, constraint callbacks).
+
+---
+
+## 7. Deployment & Scaling
+
+- [ ] Configure ADK Runner (session/memory service, environment).
+- [ ] Set up deployment for local dev, Cloud Run, and Vertex AI Agent Engine.
+- [ ] Configure autoscaling and authentication for each environment.
+
+---
+
+## 8. Testing & Validation
+
+- [x] Write unit tests for each tool and agent.
+- [x] Write integration tests for end-to-end workflows.
+- [ ] Validate output schemas and agent interactions.
+- [ ] Pilot with instructors and collect feedback.
+- [ ] Monitor and track system metrics (failures, latencies, guardrail triggers).
+
+---
+
+## 9. Documentation
+
+- [x] Document agent roles, orchestration patterns, and tool APIs.
+- [ ] Provide usage guides for instructors and developers.
+- [ ] Maintain up-to-date architecture diagrams and workflow charts.
+
+---
+
+**Tip:** For any step involving ADK, refer to the official documentation:  
+- [ADK API Reference](https://google.github.io/adk-docs/api-reference/index.html)  
+- [ADK Main Documentation](https://google.github.io/adk-docs/)

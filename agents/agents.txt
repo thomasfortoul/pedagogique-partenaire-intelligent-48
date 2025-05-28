@@ -1,0 +1,208 @@
+1. **System Architecture Overview**
+
+   1. **Agent Types & Roles**
+
+      1. **`LlmAgent`-based**
+
+         * **LearningObjectiveAgent**
+
+           * **Function:** Drafts Bloom-aligned learning objectives from program description & learner profile
+           * **Rationale:** Leverages `LlmAgent` for free-form text generation, fine-tunable prompt templates
+         * **SyllabusPlannerAgent**
+
+           * **Function:** Structures modules & sessions into a coherent syllabus outline
+           * **Rationale:** Requires narrative planning & tabular output—ideal for an `LlmAgent` with schema guidance
+         * **AssessmentGeneratorAgent**
+
+           * **Function:** Creates question items (MCQs, open-ended, case studies) matched to objectives
+           * **Rationale:** Complex text synthesis with controlled vocabulary—`LlmAgent` yields best quality
+      2. **`SequentialAgent`-based**
+
+         * **CoursePrepWorkflowAgent**
+
+           * **Function:** Orchestrates Phase 1 tasks in order: NeedsAnalysis → ObjectiveDraft → StructureProposal
+           * **Rationale:** Linear, staged pipeline; `SequentialAgent` enforces fixed step order
+      3. **`LoopAgent`-based**
+
+         * **ObjectiveRefinementAgent**
+
+           * **Function:** Iteratively refines objectives until human approval or taxonomic balance achieved
+           * **Rationale:** Loop until convergence criteria met (e.g., 6 levels of Bloom covered)
+      4. **Dynamic Routing / LLM-Driven**
+
+         * **ContentRoutingAgent**
+
+           * **Function:** Inspects user request, routes to either SyllabusPlannerAgent or AssessmentGeneratorAgent
+           * **Rationale:** Uses an LLM classifier to determine next best agent in unpredictable flows
+   2. **Orchestration Pattern**
+
+      1. **Phase-Level Sequencing**
+
+         * **CoursePrepWorkflowAgent** (`SequentialAgent`):
+
+           1. NeedsAnalysis → 2. ObjectiveDraft → 3. StructureProposal → 4. ContentSelection
+      2. **Module-Level Parallelization**
+
+         * **ParallelAgent** spawns multiple **ResourceRecommendationAgents** concurrently for readings, multimedia, case studies
+      3. **Agent2Agent (A2A) Protocol**
+
+         * **Proposal/Review Loop:**
+
+           1. LearningObjectiveAgent → sends `ProposalMessage(objectives)` → AcademicReviewerAgent
+           2. AcademicReviewerAgent → sends `ApprovalMessage` or `RevisionRequest`
+      4. **Dynamic LLM Routing**
+
+         * **ContentRoutingAgent** uses LLM to decide “next agent,” enabling non-linear workflows when user requests ad hoc edits
+
+2. **Session Management**
+
+   1. **`SessionService` Selection**
+
+      * **Prototyping:** `InMemorySessionService`
+
+        * Fast startup, ephemeral sessions, no external dependencies
+      * **Production:** `VertexAiSessionService`
+
+        * Durable storage, built-in autoscaling, high availability on Vertex AI Agent Engine
+      * **Persistence Flow:**
+
+        1. On user start: `session_service.create_session()`
+        2. After each agent step: `session_service.update_session_state(session_id, state)`
+   2. **Session States**
+
+      * **Phase 1:**
+
+        * `ObjectivesCaptured`
+        * `StructureProposed`
+      * **Phase 2:**
+
+        * `DraftReady` (syllabus draft complete)
+        * `ActivitiesDesigned`
+        * `ResourcesCompiled`
+      * **Phase 3:**
+
+        * `AssessmentCreated`
+        * `RubricReady`
+        * `FeedbackReady`
+        * `AssessmentInReview`
+      * **Transitions:**
+
+        * Agents call `session_service.transition(session_id, next_state)` upon successful completion
+        * Validation steps may set `state = RevisionRequested` triggering `LoopAgent`
+
+3. **Long-Term Memory & Knowledge**
+
+   1. **`MemoryService` Usage**
+
+      * **Add to Memory:**
+
+        * After major milestones (e.g., finalized objectives):
+
+          ```python
+          memory_service.add_session_to_memory(session)
+          ```
+      * **Retrieval:**
+
+        * Agents query via `memory_service.search_memory(query)` to load past course versions, teacher prefs
+   2. **Persistence Strategy**
+
+      | Service                          | Use Case                                       | Pros                                | Cons                              |
+      | -------------------------------- | ---------------------------------------------- | ----------------------------------- | --------------------------------- |
+      | `InMemoryMemoryService`          | Rapid prototyping, ephemeral workflows         | Zero setup, lightweight             | Volatile, no cross-session recall |
+      | `VertexAiRagMemoryService` (RAG) | Production, knowledge-rich pedagogical corpora | Scalable, integrates with ADK tools | Requires corpus management, cost  |
+
+      * **Data Stored:** alignment rules, Bloom mappings, prior assessments
+
+4. **Tool Integration**
+
+   1. **Custom Tools**
+
+      * **SyllabusGeneratorTool**
+
+        * **Inputs:** objectives list, module count, schedule constraints
+        * **Outputs:** tabular syllabus draft (JSON + CSV)
+        * **Auth:** Service account with Drive API to export to shared folder
+      * **BloomAlignmentChecker**
+
+        * **Inputs:** objectives or questions, taxonomy levels
+        * **Outputs:** alignment score, missing levels list
+      * **ResourceRecommenderTool**
+
+        * **Inputs:** topic keywords, preferred media types
+        * **Outputs:** curated resource links and metadata
+      * **QuizGeneratorTool**
+
+        * **Inputs:** objectives, question counts per level
+        * **Outputs:** question bank JSON, answer key
+      * … *(and 10+ more covering rubrics, activity proposals, feedback synthesis)*
+   2. **Built-in & External Tools**
+
+      * **ADK Built-in:**
+
+        * `search_tool` for real-time web lookup
+        * `code_execution_tool` for embedding code examples
+      * **External / MCPToolSet:**
+
+        * Institutional LMS API (Canvas/Blackboard) for syllabus upload
+        * Google Drive & Docs API for document storage & sharing
+
+5. **Agent Communication & Coordination**
+
+   1. **Inter-Agent Messaging (A2A)**
+
+      * **Message Types:** `ProposalMessage`, `ApprovalMessage`, `RevisionRequest`
+      * **Flow Example:**
+
+        1. **ObjectiveExtractorAgent** → sends `ProposalMessage(objectives)` → **AcademicReviewerAgent**
+        2. **AcademicReviewerAgent** → replies with `RevisionRequest(details)`
+        3. **ObjectiveExtractorAgent** loops until `ApprovalMessage()`
+   2. **Error Handling & Guardrails**
+
+      * **BloomAlignmentGuardrail:**
+
+        * If alignment score < threshold → triggers safe-stop, notifies human
+      * **Timeouts & Retries:**
+
+        * Agents wrap calls in try/catch, implement exponential backoff on API failures
+      * **Constraint Callbacks:**
+
+        * E.g., `on_misaligned_objectives()` invokes `LoopAgent` for remediation
+
+6. **Deployment & Scaling**
+
+   1. **ADK Runner Setup**
+
+      ```yaml
+      runner:
+        session_service: VertexAiSessionService
+        memory_service: VertexAiRagMemoryService
+      ```
+
+      * Deployed via Vertex AI Agent Engine as a container
+      * Autoscaling configured by CPU/memory usage thresholds
+   2. **Environments**
+
+      | Environment      | SessionService         | MemoryService            | Auth                                        | Region                             |
+      | ---------------- | ---------------------- | ------------------------ | ------------------------------------------- | ---------------------------------- |
+      | Local Dev        | InMemorySessionService | InMemoryMemoryService    | Local ADC, `GOOGLE_APPLICATION_CREDENTIALS` | any                                |
+      | Cloud Run        | VertexAiSessionService | VertexAiRagMemoryService | Workload identity                           | us-central1                        |
+      | Prod (AI Engine) | VertexAiSessionService | VertexAiRagMemoryService | Service account token                       | northamerica-northeast1 (Montreal) |
+
+7. **Documentation & Next Steps**
+
+   1. **References**
+
+      * ADK Core: `google.adk.Agent`
+      * Sessions: `google.adk.sessions.SessionService` / `InMemorySessionService` / `VertexAiSessionService`
+      * Memory: `google.adk.memory.MemoryService` / `VertexAiRagMemoryService`
+      * A2A Protocol: [https://google.github.io/adk-docs/agents/a2a](https://google.github.io/adk-docs/agents/a2a)
+   2. **Validation Plan**
+
+      1. **Unit Tests:** Validate each `Tool` and `Agent` output schema
+      2. **Integration Tests:** Use ADK’s `evaluation_store` to run end-to-end Phase 1–3 workflows on sample course data
+      3. **User Acceptance:** Pilot with 2–3 instructors, collect feedback on alignment accuracy, session continuity
+      4. **Monitoring:** Track session failure rates, memory retrieval latencies, guardrail invocations
+
+---
+
+*This nested outline ensures that every aspect—from agent design through production deployment—is aligned with both Google ADK best practices and Biggs’ constructive alignment principle.*

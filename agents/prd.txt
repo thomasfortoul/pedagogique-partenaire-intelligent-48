@@ -1,0 +1,86 @@
+Here’s a clear outline for building your project (from `project.txt`) using Google’s Agent Development Kit (ADK), with references to the documentation as per the `@googleadk` rule.
+---
+
+## Project Overview
+
+You want to build an AI-powered system for teachers to:
+- Generate exercises, quizzes, exams, and course outlines.
+- Use a chat interface for modular, contextual, and transparent interaction.
+- Leverage Google ADK concepts for modular agent/task handling.
+
+---
+
+## Task Outline
+
+### 1. **Project Setup**
+- **Initialize Python project** (venv, requirements, etc.)
+- **Install Google ADK**  
+  Reference: [ADK Installation Guide](https://google.github.io/adk-docs/getting-started/installation/)
+- **Set up project structure** (as previously discussed)
+
+### 2. **Define Core Data Models**
+- **Course**: Stores summarized info, objectives, Bloom’s levels, etc.
+- **Task/Document**: Represents exercises, quizzes, exams, outlines.
+- **User Interaction State**: Tracks chat context, current task, etc.
+
+### 3. **Summarization & Extraction Pipeline**
+- **Upload & Summarize Documents**:  
+  - Use an agent/tool to summarize uploaded syllabi, exams, notes.
+  - Extract key fields (objectives, topics, Bloom’s levels).
+  - Store in the course context.
+- **Reference**: [ADK Tool Creation](https://google.github.io/adk-docs/api-reference/tools/)
+
+### 4. **Agent & Tool Design (with ADK)**
+- **Create Modular Agents** for:
+  - Material Summarization
+  - Exercise/Quiz/Exam Generation
+  - Outline Generation
+  - Bloom’s Taxonomy Alignment
+- **Each agent** should have:
+  - Clear `description` and `instruction`
+  - Tools for prompting, generating, and refining content
+- **Reference**: [ADK Agent API](https://google.github.io/adk-docs/api-reference/agents/)
+
+### 5. **Chat Interface Implementation**
+- **Design a chat UI** (web or desktop) for teacher interaction.
+- **Integrate with ADK agents** to:
+  - Route tasks to the right agent/tool
+  - Maintain and display context (course, task, parameters)
+  - Support iterative refinement (regenerate, modify, etc.)
+- **Reference**: [ADK Chat Concepts](https://google.github.io/adk-docs/api-reference/chat/)
+
+### 6. **Dynamic Output Quality Indicator**
+- **Implement a visual indicator** (e.g., progress bar, color code) reflecting:
+  - Completeness of provided info
+  - Alignment with objectives/Bloom’s levels
+
+### 7. **Interaction Summary Sidebar**
+- **Persistent sidebar** showing:
+  - Current course
+  - Output type (exam, outline, etc.)
+  - Key parameters (objectives, Bloom’s level, etc.)
+
+### 8. **Export Functionality**
+- **Allow export** of finalized documents (PDF, Word, etc.)
+- **Reference**: [ADK Output Handling](https://google.github.io/adk-docs/api-reference/output/)
+
+### 9. **Testing & Iteration**
+- **Unit and integration tests** for agents, tools, and UI.
+- **User feedback loop** for refinement.
+
+---
+
+## Example: How This Looks with Google ADK
+
+- **Agents**: Each major function (summarization, exam generation, etc.) is an ADK agent.
+- **Tools**: Each agent exposes tools (functions) for specific subtasks (e.g., extract objectives, generate questions).
+- **Chat Orchestration**: The chat interface acts as an orchestrator, routing user requests to the appropriate agent/tool, maintaining context, and supporting iterative refinement.
+- **Context Management**: Use ADK’s context features to keep track of course info, user state, and task parameters.
+
+---
+
+## Documentation References
+
+Whenever you need to check how to implement agents, tools, or context management, use:
+- [ADK API Reference](https://google.github.io/adk-docs/api-reference/index.html)
+- [ADK Main Documentation](https://google.github.io/adk-docs/)
