@@ -52,6 +52,9 @@
 
 ## 5. Future Work: Building the Bridge, Simplifying, and Clarifying
 
+*   **Minimum Demonstrable Product (MDP) for Quiz Generation Completed**: As a first step, a basic backend API has been developed and integrated with the UI to demonstrate the `generate_quiz` agent tool. This serves as a foundation for further integration.
+The next phase of development will focus on integrating the agent workflow directly into the chat interface and enabling dynamic UI updates based on agent interactions.
+
 *   **Develop the Backend API**: This is the critical step to enable communication between the UI and agents. It needs to expose agent functionalities via well-defined endpoints.
 *   **Integrate UI with Backend**: Modify the React components and pages to make asynchronous calls to the new backend API for triggering agent workflows and fetching results.
 *   **Adapt Agents for API Interaction**: Refactor the Python agent code to be easily callable as functions or services by the backend API, moving away from a purely CLI-driven model.

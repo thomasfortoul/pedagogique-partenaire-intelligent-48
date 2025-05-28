@@ -357,4 +357,129 @@ def add_to_memory(session_id: str, key: str, data: Any) -> None:
 # Function to retrieve from memory
 def retrieve_from_memory(user_id: str, query: str) -> List[Dict[str, Any]]:
     """Retrieve data from memory based on a query."""
-    return memory_service.search(query, filter_={"user_id": user_id}) 
+    return memory_service.search(query, filter_={"user_id": user_id})
+
+# ------------------------------------------------------------------------
+# Chat Handling and Orchestration
+# ------------------------------------------------------------------------
+
+def handle_chat_message(session_id: str, message: str) -> Dict[str, Any]:
+    """
+    Handles an incoming chat message, orchestrates agents based on session state,
+    and updates session state and returns agent response with UI updates.
+    """
+    session_state = session_service.get_session_state(session_id)
+    current_state_value = session_state.get("current_state", SessionState.OBJECTIVES_CAPTURED.value)
+    current_state = SessionState(current_state_value)
+    user_id = session_state.get("user_id", "anonymous_user")
+
+    print(f"Handling message for session {session_id} in state: {current_state.value}")
+    print(f"User message: {message}")
+
+    agent_response_text = "I'm not sure how to respond to that."
+    ui_updates_data: Dict[str, Any] = {}
+    next_state = current_state
+
+    try:
+        if current_state == SessionState.OBJECTIVES_CAPTURED:
+            # Assume the first user message after initial greeting contains objectives
+            # In a real scenario, you'd use an agent to extract/verify objectives
+            objectives = [obj.strip() for obj in message.split(',') if obj.strip()]
+            if objectives:
+                session_state["objectives"] = objectives
+                agent_response_text = "Okay, I have captured the following objectives:\n" + "\n".join(objectives) + "\n\nWhat type of document would you like to create (e.g., Exam, Quiz)?"
+                next_state = SessionState.STRUCTURE_PROPOSED # Move to next state
+                ui_updates_data["taskParameters"] = {"learningObjectives": message}
+                ui_updates_data["current_agent_id"] = "pedagogie" # Example: Move to Pedagogie agent visually
+            else:
+                agent_response_text = "Please provide the learning objectives you want to evaluate."
+
+        elif current_state == SessionState.STRUCTURE_PROPOSED:
+            # Assume user specifies document type (e.g., "Exam", "Quiz")
+            # In a real scenario, use an agent to interpret intent
+            document_type = message.strip()
+            if document_type:
+                session_state["outputType"] = document_type
+                agent_response_text = f"Understood. You want to create a '{document_type}'. What Bloom's Taxonomy level(s) should the assessment target?"
+                next_state = SessionState.DRAFT_READY # Move to next state (placeholder)
+                ui_updates_data["taskParameters"] = {"outputType": document_type}
+                ui_updates_data["current_agent_id"] = "bloom" # Example: Move to Bloom agent visually
+            else:
+                 agent_response_text = "Please specify the type of document you want to create (e.g., Exam, Quiz)."
+
+        elif current_state == SessionState.DRAFT_READY:
+             # Assume user specifies Bloom's levels
+             blooms_level = message.strip()
+             if blooms_level:
+                 session_state["bloomsLevel"] = blooms_level
+                 agent_response_text = f"Targeting Bloom's level(s): {blooms_level}. I can now generate the assessment. Are you ready?"
+                 next_state = SessionState.ASSESSMENT_CREATED # Move to next state (placeholder)
+                 ui_updates_data["taskParameters"] = {"bloomsLevel": blooms_level}
+                 ui_updates_data["current_agent_id"] = "questions" # Example: Move to Questions agent visually
+             else:
+                 agent_response_text = "Please specify the Bloom's Taxonomy level(s)."
+
+        elif current_state == SessionState.ASSESSMENT_CREATED:
+            # Assume user confirms readiness to generate
+            if message.lower().strip() == "yes" or message.lower().strip() == "ready":
+                agent_response_text = "Generating the assessment now..."
+                ui_updates_data["current_agent_id"] = "createur" # Example: Move to Createur agent visually
+
+                # Trigger the assessment generation workflow
+                # This is a simplified call; real workflow would use session state data
+                objectives_for_agent = [{"text": obj, "bloom_level": "Understanding"} for obj in session_state.get("objectives", [])] # Basic mapping
+                question_counts_for_agent = {"mcq": 3, "short_answer": 1} # Example counts
+                difficulty_for_agent = "medium" # Example difficulty
+
+                # Call the actual quiz generation tool
+                if tools and hasattr(tools, 'generate_quiz'):
+                    quiz_result = tools.generate_quiz(
+                        objectives=objectives_for_agent,
+                        question_counts=question_counts_for_agent,
+                        difficulty=difficulty_for_agent
+                    )
+
+                    if quiz_result.get("status") == "success":
+                        generated_exam_data = quiz_result.get("quiz")
+                        session_state["assessments"] = [generated_exam_data] # Store generated exam in session
+                        agent_response_text = "The assessment has been generated."
+                        ui_updates_data["generatedExam"] = generated_exam_data # Send generated exam to UI
+                        next_state = SessionState.COMPLETED # Workflow completed (for this basic flow)
+                        ui_updates_data["current_agent_id"] = "principal" # Example: Move back to Principal agent
+                    else:
+                        agent_response_text = f"Error generating assessment: {quiz_result.get('error_message', 'Unknown error')}"
+                        next_state = SessionState.ERROR
+                        ui_updates_data["current_agent_id"] = "principal" # Example: Move back to Principal agent
+                else:
+                    agent_response_text = "Assessment generation tool not available."
+                    next_state = SessionState.ERROR
+                    ui_updates_data["current_agent_id"] = "principal" # Example: Move back to Principal agent
+
+            else:
+                agent_response_text = "Please let me know when you are ready to generate the assessment."
+
+        elif current_state == SessionState.COMPLETED:
+            agent_response_text = "The workflow is completed. You can download the generated assessment. What would you like to do next?"
+            # Stay in completed state or transition based on new user input
+
+        elif current_state == SessionState.ERROR:
+            agent_response_text = "An error occurred during the workflow. Please try again or start a new session."
+            # Stay in error state or transition based on user input
+
+        # Always update the session state at the end
+        session_state["current_state"] = next_state.value
+        session_service.update_session_state(session_id, session_state)
+
+    except Exception as e:
+        print(f"Error in handle_chat_message for session {session_id}: {e}")
+        agent_response_text = "An internal error occurred while processing your message."
+        session_state["current_state"] = SessionState.ERROR.value
+        session_service.update_session_state(session_id, session_state)
+        ui_updates_data["current_agent_id"] = "principal" # Example: Move back to Principal agent
+
+
+    return {
+        "response": agent_response_text,
+        "ui_updates": ui_updates_data,
+        "session_id": session_id # Return session_id in the response
+    }

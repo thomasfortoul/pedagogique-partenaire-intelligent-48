@@ -43,8 +43,8 @@ Here are 10 concrete tasks, each with a checklist, to guide and evaluate your im
 ---
 
 ### 6. **Build the Chat Interface**
-- [ ] Design a basic chat UI (web or desktop).
-- [ ] Integrate chat with ADK agents for task routing.
+- [x] Design a basic chat UI (web or desktop).
+- [x] Integrate chat with ADK agents for task routing.
 - [ ] Display and update context (course, task, parameters) in the UI.
 - [ ] Support iterative refinement (regenerate, modify, etc.).
 
