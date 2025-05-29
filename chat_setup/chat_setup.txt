@@ -1,0 +1,93 @@
+I need to document how the ADK API server and the chat client interact, so the user can apply this to their complex codebase. I'm in Ask mode, so I can't write files, but I can provide a detailed explanation.
+
+# ADK API Server and Chat Client Interaction Documentation
+
+## Overview
+
+The ADK (Agent Development Kit) API server provides a local web server that allows you to test your agent before deployment. The chat client we created simulates a frontend application that communicates with this API server. Here's how the entire system works:
+
+## Setting Up and Running the ADK API Server
+
+1. **Project Structure Requirements**:
+   - Your agent code must be in a Python package (a directory with an `__init__.py` file)
+   - The directory name is your agent name (e.g., `multi_tool_agent`)
+   - The main agent code is typically in `agent.py` within this directory
+
+2. **Starting the API Server**:
+   - Navigate to the parent directory containing your agent package
+   - Run `adk api_server` from this directory
+   - The server will start on http://localhost:8000 by default
+   - You should see output similar to:
+     ```
+     INFO: Started server process [12345]
+     INFO: Waiting for application startup.
+     INFO: Application startup complete.
+     INFO: Uvicorn running on http://localhost:8000 (Press CTRL+C to quit)
+     ```
+
+3. **Important Note on Directory Structure**:
+   - The API server must be able to import your agent as a Python module
+   - If you get `ModuleNotFoundError: No module named 'your_agent_name'`, you're likely running the server from the wrong directory
+
+## Using the Chat Client
+
+1. **How the Chat Client Works**:
+   - Creates a session with your agent via the `/apps/{agent_name}/users/{user_id}/sessions/{session_id}` endpoint
+   - Sends messages to your agent via the `/run` endpoint
+   - Processes and displays the agent's responses
+
+2. **API Endpoints and Payload Format**:
+   - Session creation: `POST /apps/{agent_name}/users/{user_id}/sessions/{session_id}`
+   - Message sending: `POST /run`
+   - Payload format uses snake_case for field names:
+     ```json
+     {
+       "app_name": "your_agent_name",
+       "user_id": "user_id",
+       "session_id": "session_id",
+       "new_message": {
+         "role": "user",
+         "parts": [{"text": "your message"}]
+       }
+     }
+     ```
+
+3. **Running the Chat Client**:
+   - With the API server running, open a new terminal
+   - Run `python3 chat_client.py`
+   - Type messages and see your agent's responses
+
+## Applying to Your Complex Codebase
+
+1. **Adapting to Your Project**:
+   - Ensure your agent code is in a proper Python package structure
+   - The package name should match what you use in the chat client's `AGENT_NAME` variable
+
+2. **Customizing the Chat Client**:
+   - Modify the `chat_client.py` script to match your agent's specific requirements
+   - You may need to adjust how responses are processed based on your agent's output format
+
+3. **Testing Process**:
+   - Always run the API server from the parent directory of your agent package
+   - Use the chat client to test different interactions with your agent
+   - Check the API server logs for errors if something isn't working
+
+4. **Advanced Usage**:
+   - For more complex interactions, you can modify the chat client to handle function calls, streaming responses, or other features
+   - The `/run_sse` endpoint can be used for streaming responses if needed
+
+## Troubleshooting Common Issues
+
+1. **Module Not Found Error**:
+   - Make sure you're running `adk api_server` from the correct directory
+   - Verify your agent package has an `__init__.py` file
+
+2. **API Endpoint Errors**:
+   - Check field names in your requests (snake_case vs. camelCase)
+   - Ensure all required fields are included in your requests
+
+3. **Agent Execution Errors**:
+   - Look at the API server logs for Python exceptions
+   - These will help identify issues in your agent's code
+
+By following this documentation, you should be able to adapt the chat client to work with your complex codebase and effectively test your ADK agent locally.

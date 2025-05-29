@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 
 *.env
+
+# Python virtual environment
+.venv/
+venv/

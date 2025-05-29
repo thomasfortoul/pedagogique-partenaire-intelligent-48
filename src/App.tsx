@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import React, { useEffect } from "react";
 import Index from "./pages/Index";
 import Generate from "./pages/Generate";
+import OpenAITest from "./pages/OpenAITest";
 import Correct from "./pages/Correct";
 import Dashboard from "./pages/Dashboard";
 import Dashboard2 from "./pages/Dashboard2";
@@ -112,6 +113,7 @@ const App = () => {
                   <Generate />
                 </ProtectedRoute>
               } />
+              <Route path="/openai-test" element={<OpenAITest />} />
               <Route path="/correct" element={
                 <ProtectedRoute>
                   <Correct />

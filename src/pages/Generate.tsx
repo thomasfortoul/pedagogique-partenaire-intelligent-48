@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -124,6 +125,11 @@ const THINKING_CHAT = [
   "Finalisation et prêt pour modifications..." // Default/Final step
 ];
 
+// --- Configuration ---
+const BASE_URL = "http://localhost:8000";
+const AGENT_NAME = "multi_tool_agent"; // As per chat_setup/chat_client.py
+// --- End Configuration ---
+
 const Generate = () => {
   const [step, setStep] = useState(0); // Still used for agent display logic
   const [currentAgent, setCurrentAgent] = useState<AgentData>(AGENTS_DATA[0]);
@@ -131,7 +137,8 @@ const Generate = () => {
     { id: 'initial-message', role: 'system', content: "Bienvenue dans le Générateur d'examens pour Biologie introductive!\nQue souhaitez-vous créer aujourd'hui?", timestamp: new Date() }
   ]);
   const [input, setInput] = useState('');
-  const [sessionId, setSessionId] = useState<string | null>(null); // State to hold the session ID
+  const [userId] = useState(() => `user_${uuidv4()}`); // Generate once on component mount
+  const [sessionId, setSessionId] = useState(() => `session_${uuidv4()}`); // Initialize with a unique ID
   const [isGenerating, setIsGenerating] = useState(false);
   const [showExam, setShowExam] = useState(false);
   const [generatedExam, setGeneratedExam] = useState<typeof EXAM_ARTIFACT_PLACEHOLDER | null>(null); // State for the generated exam
@@ -141,90 +148,52 @@ const Generate = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  // MDP State (kept for now, but chat will replace its functionality)
-  const [mdpObjectivesInput, setMdpObjectivesInput] = useState('');
-  const [mdpQuestionCountsInput, setMdpQuestionCountsInput] = useState('');
-  const [mdpDifficultyInput, setMdpDifficultyInput] = useState('medium');
-  const [isGeneratingMdpQuiz, setIsGeneratingMdpQuiz] = useState(false);
-  const [mdpQuizResult, setMdpQuizResult] = useState(null);
-
-  // MDP Handler (kept for now)
-  const handleGenerateMdpQuiz = async () => {
-    setIsGeneratingMdpQuiz(true);
-    setMdpQuizResult(null); // Clear previous result
-
-    // Parse objectives input (comma-separated text)
-    const objectives = mdpObjectivesInput.split(',').map(obj => ({
-        text: obj.trim(),
-        // For MDP, assign a default Bloom level or handle in backend
-        // Let's assign 'Understanding' for simplicity in the UI for now
-        bloom_level: 'Understanding'
-    })).filter(obj => obj.text); // Filter out empty objectives
-
-    // Parse question counts input (type:count, ...)
-    const questionCounts: Record<string, number> = {};
-    mdpQuestionCountsInput.split(',').forEach(item => {
-        const parts = item.trim().split(':');
-        if (parts.length === 2) {
-            const type = parts[0].trim();
-            const count = parseInt(parts[1].trim(), 10);
-            if (!isNaN(count) && count > 0) {
-                questionCounts[type] = count;
-            }
-        }
-    });
-
-    if (objectives.length === 0 || Object.keys(questionCounts).length === 0) {
-        toast({
-            title: "Input Error",
-            description: "Please provide at least one objective and one question count.",
-            variant: "destructive"
-        });
-        setIsGeneratingMdpQuiz(false);
-        return;
-    }
-
-    try {
-        const response = await fetch('http://localhost:8000/generate-quiz', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                objectives: objectives,
-                question_counts: questionCounts,
-                difficulty: mdpDifficultyInput || 'medium',
-            }),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || 'Failed to generate quiz');
-        }
-
-        const result = await response.json();
-        setMdpQuizResult(result);
-        toast({
-            title: "Quiz Generated",
-            description: "The MDP quiz has been generated successfully.",
-        });
-
-    } catch (error: any) {
-        console.error("Error generating MDP quiz:", error);
-        toast({
-            title: "Generation Failed",
-            description: `Error: ${error.message}`,
-            variant: "destructive"
-        });
-    } finally {
-        setIsGeneratingMdpQuiz(false);
-    }
-  };
 
 
   useEffect(() => {
     if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Function to create or reuse a session with the ADK agent
+  const createSession = async () => {
+    if (!sessionId) return; // Should not happen with the new initialization
+
+    const url = `${BASE_URL}/apps/${AGENT_NAME}/users/${userId}/sessions/${sessionId}`;
+    const headers = {"Content-Type": "application/json"};
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({}) // No initial state for simplicity
+      });
+
+      if (response.status === 200) {
+        console.log(`Session created successfully: ${sessionId} for user ${userId}`);
+      } else if (response.status === 400 && (await response.text()).includes("Session already exists")) {
+        console.log(`Session ${sessionId} for user ${userId} already exists. Reusing.`);
+      } else {
+        console.error(`Error creating session: ${response.status}`);
+        console.error(await response.text());
+        toast({
+          title: "Session Error",
+          description: `Failed to create or reuse session: ${response.status}`,
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      console.error("Network error creating session:", error);
+      toast({
+        title: "Network Error",
+        description: `Could not connect to agent server: ${error.message}`,
+        variant: "destructive"
+      });
+    }
+  };
+
+  useEffect(() => {
+    createSession();
+  }, [sessionId, userId]); // Depend on sessionId and userId to ensure it runs if they change (though userId is stable)
 
   useEffect(() => {
     // This effect now primarily controls the agent display based on the step
@@ -245,19 +214,27 @@ const Generate = () => {
     setInput('');
     setIsGenerating(true);
     setShowThinkingBubble(true);
-    // The thinking step text might need to be dynamic based on backend response later
-    setThinkingStep(THINKING_CHAT[Math.min(step + 1, THINKING_CHAT.length - 1)]); // Keep for initial visual feedback
+    // The thinking step text will now be generic as dynamic steps are removed
+    // setThinkingStep(THINKING_CHAT[Math.min(step + 1, THINKING_CHAT.length - 1)]); // Removed dynamic thinking step
 
     try {
-      const response = await fetch('http://localhost:8000/chat', {
+      const url = `${BASE_URL}/run`; // Changed endpoint to ADK API server's /run
+      const payload = {
+        app_name: AGENT_NAME, // Use snake_case as required by ADK API
+        user_id: userId,
+        session_id: sessionId,
+        new_message: {
+          role: "user",
+          parts: [{ text: newUserMessage.content }]
+        }
+      };
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          session_id: sessionId, // Include session ID in the request
-          message: newUserMessage.content,
-        }),
+        body: JSON.stringify(payload), // Send the new payload
       });
 
       if (!response.ok) {
@@ -265,49 +242,62 @@ const Generate = () => {
         throw new Error(errorData.detail || 'Failed to get agent response');
       }
 
-      const result = await response.json();
+      const resultEvents = await response.json(); // Now expects an array of events from ADK API
 
-      // Update session ID if a new one is returned
-      if (result.session_id && result.session_id !== sessionId) {
-        setSessionId(result.session_id);
-        console.log("New session ID received:", result.session_id);
+      let agentResponseText = "";
+      // Iterate through the events to find the final text response from the model
+      for (const event of resultEvents) {
+        if (event.content && event.content.parts) {
+          for (const part of event.content.parts) {
+            if (part.text) {
+              agentResponseText += part.text;
+            }
+            // Optionally, you can add logic here to display function calls/responses
+            // if (part.functionCall) {
+            //   agentResponseText += `\n(Calling tool: ${part.functionCall.name} with args: ${JSON.stringify(part.functionCall.args)})`;
+            // }
+            // if (part.functionResponse) {
+            //   agentResponseText += `\n(Tool response: ${part.functionResponse.name} - Status: ${part.functionResponse.response?.status || 'N/A'})`;
+            // }
+          }
+        }
       }
 
       // Add agent's response to messages
       const agentResponse = {
         id: Date.now().toString() + '_agent',
-        role: 'system', // Assuming agent responses are 'system' messages
-        content: result.response,
+        role: 'system',
+        content: agentResponseText.trim() || "No text response from agent.", // Use the collected text
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, agentResponse]);
 
-      // Handle dynamic UI updates based on ui_updates data
-      if (result.ui_updates) {
-        console.log("Received UI updates:", result.ui_updates);
-        // Example: Update task parameters
-        if (result.ui_updates.taskParameters) {
-          setTaskParameters(prev => ({ ...prev, ...result.ui_updates.taskParameters }));
-        }
-        // Example: Show generated exam
-        if (result.ui_updates.generatedExam) {
-            setGeneratedExam(result.ui_updates.generatedExam);
-            setShowExam(true);
-        }
-        // TODO: Add logic for other potential UI updates
-      }
+      // --- The following UI update logic is specific to the previous backend and is removed/commented out ---
+      // It is assumed that the ADK API server does not provide these structured UI updates directly.
+      // If this functionality is desired, an intermediary backend would be required.
 
-      // Update step based on backend response if needed (e.g., for agent icon change)
-      // The backend could return a 'next_step' or 'current_agent_id' in ui_updates
-      if (result.ui_updates?.current_agent_id) {
-          const agentIndex = AGENTS_DATA.findIndex(agent => agent.id === result.ui_updates.current_agent_id);
-          if (agentIndex !== -1) {
-              setStep(agentIndex);
-          }
-      } else {
-          // Basic step increment if backend doesn't specify (might need refinement)
-          setStep(prevStep => prevStep + 1);
-      }
+      // if (result.session_id && result.session_id !== sessionId) {
+      //   setSessionId(result.session_id);
+      //   console.log("New session ID received:", result.session_id);
+      // }
+      // if (result.ui_updates) {
+      //   console.log("Received UI updates:", result.ui_updates);
+      //   if (result.ui_updates.taskParameters) {
+      //     setTaskParameters(prev => ({ ...prev, ...result.ui_updates.taskParameters }));
+      //   }
+      //   if (result.ui_updates.generatedExam) {
+      //       setGeneratedExam(result.ui_updates.generatedExam);
+      //       setShowExam(true);
+      //   }
+      // }
+      // if (result.ui_updates?.current_agent_id) {
+      //     const agentIndex = AGENTS_DATA.findIndex(agent => agent.id === result.ui_updates.current_agent_id);
+      //     if (agentIndex !== -1) {
+      //         setStep(agentIndex);
+      //     }
+      // } else {
+      //     setStep(prevStep => prevStep + 1);
+      // }
 
 
     } catch (error: any) {
@@ -446,84 +436,6 @@ const Generate = () => {
               </CardFooter>
             </Card>
 
-            {/* MDP Quiz Generation Section */}
-            <Card className="shadow-xl">
-              <CardHeader><CardTitle className="text-lg">Generate MDP Quiz (Alpha)</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Objectives (comma-separated text, e.g., "Understand concepts, Apply methods")</label>
-                  <Input
-                    value={mdpObjectivesInput}
-                    onChange={e => setMdpObjectivesInput(e.target.value)}
-                    placeholder="Enter objectives"
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Question Counts (e.g., mcq:5, true_false:3)</label>
-                   <Input
-                    value={mdpQuestionCountsInput}
-                    onChange={e => setMdpQuestionCountsInput(e.target.value)}
-                    placeholder="Enter question counts (type:count, ...)"
-                    className="mt-1"
-                  />
-                </div>
-                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Difficulty</label>
-                   <Input
-                    value={mdpDifficultyInput}
-                    onChange={e => setMdpDifficultyInput(e.target.value)}
-                    placeholder="e.g., medium"
-                    className="mt-1"
-                  />
-                </div>
-
-                {mdpQuizResult && (
-                  <div className="mt-6 space-y-4">
-                    <h3 className="text-lg font-semibold">Generated Quiz:</h3>
-                    <p>Title: {mdpQuizResult.title}</p>
-                    <p>Description: {mdpQuizResult.description}</p>
-                    <p>Total Questions: {mdpQuizResult.metadata.question_count}</p>
-                    <div className="space-y-4 mt-4">
-                      {mdpQuizResult.questions.map((q: any, index: number) => (
-                         <div key={q.id} className="border-l-4 border-blue-500 pl-4 py-2 bg-gray-50 rounded-r-md">
-                            <p className="font-medium">Q{index + 1}: {q.text}</p>
-                            <p className="text-sm text-gray-600">Type: {q.type}, Bloom Level: {q.bloom_level}, Difficulty: {q.difficulty}</p>
-                            {q.options && (
-                                <ul className="list-disc list-inside ml-4 text-sm text-gray-600">
-                                    {q.options.map((opt: any) => (
-                                        <li key={opt.id}>{opt.id}: {opt.text}</li>
-                                    ))}
-                                </ul>
-                            )}
-                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-              </CardContent>
-              <CardFooter className="border-t p-4 flex justify-end">
-                <Button
-                  onClick={handleGenerateMdpQuiz}
-                  disabled={isGeneratingMdpQuiz}
-                  className="bg-green-500 hover:bg-green-600 text-white"
-                >
-                  {isGeneratingMdpQuiz ? (
-                     <>
-                       <motion.div
-                         animate={{ rotate: 360 }}
-                         transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                         className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"
-                        />
-                       Generating...
-                     </>
-                   ) : (
-                     "Generate Quiz"
-                   )}
-                </Button>
-              </CardFooter>
-            </Card>
 
             {showExam && generatedExam && (
               <motion.div initial={{ opacity: 0, y:20 }} animate={{ opacity: 1, y:0 }} transition={{duration: 0.5}}>
