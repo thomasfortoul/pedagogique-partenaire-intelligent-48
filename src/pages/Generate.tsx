@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Course } from '@/types/course'; // Import Course type
+import { UserProfile } from '@/types/user'; // Import UserProfile type
 
 // Interface for Agent Data
 interface AgentData {
@@ -148,7 +149,9 @@ const Generate = () => {
   const [thinkingStep, setThinkingStep] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const [courses, setCourses] = useState<Course[]>([]); // State to store courses
+  const [courses, setCourses] = useState<Course[]>([]); // State to store all courses
+  const [currentCourse, setCurrentCourse] = useState<Course | null>(null); // State to store the specific course for generation
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null); // State to store user profile data
 
   // Load courses from localStorage on initial render
   useEffect(() => {
@@ -168,16 +171,24 @@ const Generate = () => {
     if (courseId) {
       const foundCourse = courses.find(c => c.id === courseId); // Use loaded courses
       if (foundCourse) {
+        setCurrentCourse(foundCourse); // Set the found course
         setTaskParameters(prev => ({ ...prev, course: foundCourse.title })); // Use foundCourse.title
         initialMessageContent = `Bienvenue dans le Générateur d'examens pour le cours de "${foundCourse.title}"!\nDescription du cours: ${foundCourse.description}\nQue souhaitez-vous créer aujourd'hui?`;
       } else {
         initialMessageContent = `Bienvenue dans le Générateur d'examens!\nLe cours avec l'ID "${courseId}" n'a pas été trouvé.\nQue souhaitez-vous créer aujourd'hui?`;
       }
     }
+    // Construct UserProfile
+    setUserProfile({
+      userId: userId,
+      courses: courses, // Pass all courses
+      // Add other profile data if available, e.g., name, email
+    });
+
     setMessages([
       { id: 'initial-message', role: 'system', content: initialMessageContent, timestamp: new Date() }
     ]);
-  }, [courseId, courses]); // Re-run when courseId or courses change
+  }, [courseId, courses, userId]); // Re-run when courseId, courses, or userId change
 
 
 
@@ -257,7 +268,16 @@ const Generate = () => {
         new_message: {
           role: "user",
           parts: [{ text: newUserMessage.content }]
-        }
+        },
+        // Pass course and user profile data
+        course_data: currentCourse ? {
+          id: currentCourse.id,
+          title: currentCourse.title,
+          description: currentCourse.description,
+          level: currentCourse.level,
+          // documents: currentCourse.documents // Only include if needed by agent, can be large
+        } : null,
+        user_profile_data: userProfile,
       };
 
       const response = await fetch(url, {
