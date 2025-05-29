@@ -6,15 +6,24 @@ Implements the agent types and orchestration patterns defined in agents.txt
 import json
 from typing import List, Dict, Any, Optional, Tuple, Union
 from enum import Enum
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from .logger import log_agent_call, log_agent_response, log_error, log_tool_call, log_tool_response
 
 from google.adk.agents import Agent, LlmAgent, SequentialAgent, LoopAgent
-from google.adk.sessions import InMemorySessionService, BaseSessionService
+from google.adk.sessions import InMemorySessionService, BaseSessionService, Session
 from google.adk.memory import InMemoryMemoryService, BaseMemoryService
+from google.adk.events import Event, EventActions
 from google.adk.sessions import BaseSessionService as SessionService
 from google.adk.memory import BaseMemoryService as MemoryService
-from .models import Course, TaskDocument, UserInteractionState
+from google.genai.types import Content, Part
+from .models import Course, TaskDocument, UserInteractionState, UserProfile # Import UserProfile
+import time
+
+# ------------------------------------------------------------------------
+# Constants
+# ------------------------------------------------------------------------
+
+APP_NAME = "pedagogical_system"
 
 # ------------------------------------------------------------------------
 # Message Types for A2A Protocol
@@ -62,10 +71,19 @@ class SessionState(Enum):
 # Tools for Course Planning and Assessment
 # ------------------------------------------------------------------------
 
-def extract_learning_objectives(document: str, course_context: Dict[str, Any]) -> Dict[str, Any]:
-    """Extracts learning objectives from course materials or program descriptions."""
+def extract_learning_objectives(document: str, current_course: Optional[Course] = None, user_profile: Optional[UserProfile] = None) -> Dict[str, Any]:
+    """Extracts learning objectives from course materials or program descriptions, using course and user context."""
     # This would use an LLM to analyze the document for learning objectives
-    # For now, we return a simple placeholder
+    # For now, we return a simple placeholder, but demonstrate access to context
+    
+    print(f"Tool: extract_learning_objectives - Received document: {document[:50]}...")
+    if current_course:
+        print(f"Tool: extract_learning_objectives - Current Course Title: {current_course.title}")
+        print(f"Tool: extract_learning_objectives - Current Course Description: {current_course.description}")
+    if user_profile:
+        print(f"Tool: extract_learning_objectives - User ID: {user_profile.userId}")
+        print(f"Tool: extract_learning_objectives - User Courses Count: {len(user_profile.courses)}")
+
     objectives = [
         "Understand key pedagogical concepts and theories",
         "Apply instructional design principles to course planning",
@@ -198,12 +216,13 @@ learning_objective_agent = LlmAgent(
     description="Drafts Bloom-aligned learning objectives from program descriptions and learner profiles.",
     instruction="""
     You are a learning objectives specialist. Your task is to:
-    1. Analyze program descriptions and learner profiles
+    1. Analyze program descriptions, the provided current course context, and the user's profile (including their other courses)
     2. Draft clear, measurable learning objectives aligned with Bloom's taxonomy
     3. Ensure objectives cover various cognitive levels from understanding to creation
     4. Structure objectives to support constructive alignment between content and assessment
+    5. Use the current course's description and level, and the user's overall course history, to inform the objectives.
     """,
-    tools=[extract_learning_objectives, check_bloom_alignment]
+    tools=[extract_learning_objectives, check_bloom_alignment] # The tool itself is passed
 )
 
 # LLM Agent - Syllabus Planner Agent
@@ -278,244 +297,652 @@ resource_recommendation_agent = Agent(
 )
 
 # ------------------------------------------------------------------------
-# Root Orchestrator Agent
+# Enhanced Root Orchestrator Agent with Context Access
 # ------------------------------------------------------------------------
 
-root_agent = Agent(
-    name="pedagogical_orchestrator",
-    model="gemini-2.0-flash-exp",
-    description="Orchestrates the entire course planning and assessment generation process.",
-    instruction="""
-    You are the main orchestrator for course planning and assessment development.
-    Analyze the user's request and:
-    1. For course planning, invoke the course preparation workflow
-    2. For objectives refinement, use the iterative refinement loop
-    3. For content generation, route to the appropriate specialist agent
-    4. For assessment creation, engage the assessment generator
-    5. For resource recommendations, use the resource recommendation agent
+def create_root_agent_with_context() -> Agent:
+    """
+    Create the root agent with enhanced access to user context and session state.
+    """
     
-    Always maintain pedagogical alignment between objectives, content, and assessment.
-    """,
-    tools=[]  # The orchestrator uses other agents rather than direct tools
-)
+    def get_session_context_tool(session_id: str) -> Dict[str, Any]:
+        """Tool for root agent to access session context."""
+        try:
+            context = get_user_context_from_session(session_id)
+            log_tool_call("get_session_context_tool", {"session_id": session_id}, session_id)
+            log_tool_response("get_session_context_tool", {"status": "success", "context_keys": list(context.keys())}, session_id)
+            return {
+                "status": "success",
+                "context": context
+            }
+        except Exception as e:
+            log_error("get_session_context_tool", e, session_id)
+            return {
+                "status": "error",
+                "error": str(e)
+            }
+    
+    def get_user_history_tool(user_id: str, query: str = "") -> Dict[str, Any]:
+        """Tool for root agent to search user's historical data."""
+        try:
+            search_query = f"user_id:{user_id}" + (f" {query}" if query else "")
+            results = memory_service.search_memory(search_query, similarity_top_k=5)
+            
+            log_tool_call("get_user_history_tool", {"user_id": user_id, "query": query}, None)
+            log_tool_response("get_user_history_tool", {"status": "success", "results_count": len(results)}, None)
+            
+            return {
+                "status": "success",
+                "history": results
+            }
+        except Exception as e:
+            log_error("get_user_history_tool", e, None)
+            return {
+                "status": "error",
+                "error": str(e)
+            }
+
+    # Enhanced root agent with context tools
+    enhanced_root_agent = Agent(
+        name="pedagogical_orchestrator_enhanced",
+        model="gemini-2.0-flash-exp",
+        description="Enhanced orchestrator with full access to user context and session state.",
+        instruction="""
+        You are the main orchestrator for course planning and assessment development with full access to user context.
+        
+        IMPORTANT: Always start by retrieving the current session context to understand:
+        - User profile information (name, preferences, course history)
+        - Current course details (title, description, level)
+        - Current workflow step and chat history
+        - App-level settings and capabilities
+        
+        Use this context to:
+        1. Personalize responses based on user preferences and course history
+        2. Align content with the current course level and description
+        3. Reference previous work and maintain continuity
+        4. Make informed decisions about workflow progression
+        
+        Available tools:
+        - get_session_context_tool: Get current session context including user profile and course
+        - get_user_history_tool: Search user's historical data and interactions
+        
+        Always maintain pedagogical alignment between objectives, content, and assessment.
+        Consider the user's experience level and course context in all recommendations.
+        """,
+        tools=[get_session_context_tool, get_user_history_tool]
+    )
+    
+    return enhanced_root_agent
+
+# Create the enhanced root agent
+root_agent = create_root_agent_with_context()
 
 # ------------------------------------------------------------------------
-# Session and Memory Services
+# Enhanced Session and Memory Services with ADK Best Practices
 # ------------------------------------------------------------------------
 
 # Initialize services for development
 session_service = InMemorySessionService()
 memory_service = InMemoryMemoryService()
 
-# Function to initialize a session
-def initialize_session(user_id: str) -> str:
-    """Initialize a new session for a user."""
-    session_id = session_service.create_session()
-    initial_state = {
-        "user_id": user_id,
-        "current_state": SessionState.OBJECTIVES_CAPTURED.value,
-        "course": None,
-        "objectives": [],
-        "structure": [],
-        "assessments": []
+def initialize_session_with_user_context(
+    user_id: str, 
+    user_profile: Optional[UserProfile] = None,
+    current_course: Optional[Course] = None
+) -> str:
+    """
+    Initialize a new session with proper ADK state management.
+    Uses ADK's session.state with proper prefixes for different scopes.
+    """
+    # Create session using ADK SessionService
+    session = session_service.create_session(
+        app_name=APP_NAME,
+        user_id=user_id,
+        state={}
+    )
+    session_id = session.id
+    
+    # Initialize state using ADK patterns with proper prefixes
+    initial_state_delta = {
+        # Session-specific state (no prefix)
+        "current_step": SessionState.OBJECTIVES_CAPTURED.value,
+        "chat_context": {},
+        "current_task_id": None,
+        
+        # User-scoped state (persists across sessions for this user)
+        "user:profile_id": user_profile.userId if user_profile else None,
+        "user:name": user_profile.name if user_profile else None,
+        "user:email": user_profile.email if user_profile else None,
+        "user:preferences": json.dumps(user_profile.preferences) if user_profile and user_profile.preferences else "{}",
+        
+        # Current course state (session-specific but could be user: if needed across sessions)
+        "current_course_id": current_course.id if current_course else None,
+        "current_course_title": current_course.title if current_course else None,
+        "current_course_description": current_course.description if current_course else None,
+        "current_course_level": current_course.level if current_course else None,
+        
+        # App-level state (shared across all users)
+        "app:version": "1.0.0",
+        "app:supported_languages": json.dumps(["en", "fr"])
     }
-    session_service.update_session_state(session_id, initial_state)
+    
+    # Create event to initialize the session state
+    initialization_event = Event(
+        invocation_id=f"init_{session_id}",
+        author="system",
+        actions=EventActions(state_delta=initial_state_delta),
+        timestamp=time.time()
+    )
+    
+    # Apply initial state using proper ADK event pattern
+    session_service.append_event(session, initialization_event)
+    
+    # Add user profile and course to memory for long-term retrieval
+    if user_profile:
+        add_user_to_memory(user_id, user_profile)
+    
+    if current_course:
+        add_course_to_memory(user_id, current_course)
+    
+    log_agent_call("initialize_session_with_user_context", {
+        "session_id": session_id,
+        "user_id": user_id,
+        "has_profile": user_profile is not None,
+        "has_course": current_course is not None
+    }, session_id)
+    
     return session_id
 
-# Function to update session state
+def update_session_state_adk(
+    session_id: str, 
+    state_updates: Dict[str, Any],
+    event_author: str = "system"
+) -> None:
+    """
+    Update session state using proper ADK EventActions pattern.
+    """
+    # Get current session
+    session = session_service.get_session(
+        app_name=APP_NAME,
+        user_id=None,  # Will be retrieved from session
+        session_id=session_id
+    )
+    
+    if not session:
+        raise ValueError(f"Session {session_id} not found")
+    
+    # Create event with state delta
+    update_event = Event(
+        invocation_id=f"update_{session_id}_{len(session.events)}",
+        author=event_author,
+        actions=EventActions(state_delta=state_updates),
+        timestamp=time.time()
+    )
+    
+    # Apply updates using ADK pattern
+    session_service.append_event(session, update_event)
+    
+    log_agent_call("update_session_state_adk", {
+        "session_id": session_id,
+        "updates": list(state_updates.keys())
+    }, session_id)
+
+def get_user_context_from_session(session_id: str) -> Dict[str, Any]:
+    """
+    Retrieve user profile and course context from session state.
+    Returns structured context for agent consumption.
+    """
+    session = session_service.get_session(
+        app_name=APP_NAME,
+        user_id=None,
+        session_id=session_id
+    )
+    
+    if not session:
+        raise ValueError(f"Session {session_id} not found")
+    
+    state = session.state
+    
+    # Extract user context using ADK state patterns
+    user_context = {
+        "user_id": session.user_id,
+        "session_id": session_id,
+        "current_step": state.get("current_step"),
+        "chat_context": state.get("chat_context", {}),
+        
+        # User profile information
+        "user_profile": {
+            "userId": state.get("user:profile_id"),
+            "name": state.get("user:name"),
+            "email": state.get("user:email"),
+            "preferences": json.loads(state.get("user:preferences", "{}"))
+        } if state.get("user:profile_id") else None,
+        
+        # Current course information
+        "current_course": {
+            "id": state.get("current_course_id"),
+            "title": state.get("current_course_title"),
+            "description": state.get("current_course_description"),
+            "level": state.get("current_course_level")
+        } if state.get("current_course_id") else None,
+        
+        # App-level context
+        "app_context": {
+            "version": state.get("app:version"),
+            "supported_languages": json.loads(state.get("app:supported_languages", "[]"))
+        }
+    }
+    
+    return user_context
+
+# ------------------------------------------------------------------------
+# Enhanced Memory Service Functions
+# ------------------------------------------------------------------------
+
+def add_user_to_memory(user_id: str, user_profile: UserProfile) -> None:
+    """Add user profile to memory service for long-term retrieval."""
+    user_data = {
+        "type": "user_profile",
+        "user_id": user_id,
+        "profile": asdict(user_profile),
+        "courses": [asdict(course) for course in user_profile.courses] if user_profile.courses else []
+    }
+    
+    # Add to memory with searchable content
+    memory_service.add_session_to_memory(
+        session_data={
+            "user_id": user_id,
+            "content": f"User profile for {user_profile.name} ({user_profile.email}). Courses: {', '.join([c.title for c in user_profile.courses]) if user_profile.courses else 'None'}",
+            "metadata": user_data
+        }
+    )
+    
+    log_tool_call("add_user_to_memory", {"user_id": user_id, "name": user_profile.name}, None)
+
+def add_course_to_memory(user_id: str, course: Course) -> None:
+    """Add course information to memory service."""
+    course_data = {
+        "type": "course",
+        "user_id": user_id,
+        "course": asdict(course)
+    }
+    
+    # Add to memory with searchable content
+    memory_service.add_session_to_memory(
+        session_data={
+            "user_id": user_id,
+            "content": f"Course: {course.title} - {course.description}. Level: {course.level}",
+            "metadata": course_data
+        }
+    )
+    
+    log_tool_call("add_course_to_memory", {"user_id": user_id, "course_title": course.title}, None)
+
+def get_user_courses_from_memory(user_id: str) -> List[Course]:
+    """Retrieve user's courses from memory service."""
+    search_results = memory_service.search_memory(
+        query=f"user_id:{user_id} type:course",
+        similarity_top_k=10
+    )
+    
+    courses = []
+    for result in search_results:
+        if result.get("metadata", {}).get("type") == "course":
+            course_data = result["metadata"]["course"]
+            courses.append(Course(**course_data))
+    
+    return courses
+
+# Legacy functions for backward compatibility
+def initialize_session(user_id: str) -> str:
+    """Legacy function - initialize session without user context."""
+    return initialize_session_with_user_context(user_id)
+
 def update_session_state(session_id: str, new_state: SessionState, data: Dict[str, Any] = None) -> None:
-    """Update the state of a session."""
-    current_state = session_service.get_session_state(session_id)
-    current_state["current_state"] = new_state.value
-    
+    """Legacy function - update session state."""
+    updates = {"current_step": new_state.value}
     if data:
-        current_state.update(data)
-    
-    session_service.update_session_state(session_id, current_state)
+        updates.update(data)
+    update_session_state_adk(session_id, updates)
 
-# Function to add to memory
 def add_to_memory(session_id: str, key: str, data: Any) -> None:
-    """Add data to the memory service."""
-    session_state = session_service.get_session_state(session_id)
-    memory_key = f"{session_state.get('user_id', 'anonymous')}:{key}"
-    memory_service.add(memory_key, data)
+    """Legacy function - add to memory."""
+    try:
+        context = get_user_context_from_session(session_id)
+        user_id = context["user_id"]
+        memory_key = f"{user_id}:{key}"
+        memory_service.add_session_to_memory({
+            "user_id": user_id,
+            "content": f"{key}: {str(data)}",
+            "metadata": {"key": key, "data": data}
+        })
+    except Exception as e:
+        log_error("add_to_memory", e, session_id)
 
-# Function to retrieve from memory
 def retrieve_from_memory(user_id: str, query: str) -> List[Dict[str, Any]]:
-    """Retrieve data from memory based on a query."""
-    return memory_service.search(query, filter_={"user_id": user_id})
+    """Legacy function - retrieve from memory."""
+    try:
+        return memory_service.search_memory(f"user_id:{user_id} {query}")
+    except Exception as e:
+        log_error("retrieve_from_memory", e, None)
+        return []
 
 # ------------------------------------------------------------------------
 # Chat Handling and Orchestration
 # ------------------------------------------------------------------------
 
-def handle_chat_message(session_id: str, message: str) -> Dict[str, Any]:
+def handle_chat_message_enhanced(
+    session_id: str, 
+    message: str,
+    user_profile: Optional[UserProfile] = None,
+    current_course: Optional[Course] = None
+) -> Dict[str, Any]:
     """
-    Handles an incoming chat message, orchestrates agents based on session state,
-    and updates session state and returns agent response with UI updates.
+    Enhanced chat message handler that properly uses ADK session state and context.
     """
-    log_agent_call("handle_chat_message", {"session_id": session_id, "message": message}, session_id)
-
-    session_state = session_service.get_session_state(session_id)
-    current_state_value = session_state.get("current_state", SessionState.OBJECTIVES_CAPTURED.value)
-    current_state = SessionState(current_state_value)
-    user_id = session_state.get("user_id", "anonymous_user")
-
-    print(f"Session {session_id} current state: {current_state.value}")
-
-    agent_response_text = "I'm not sure how to respond to that."
-    ui_updates_data: Dict[str, Any] = {}
-    next_state = current_state
+    log_agent_call("handle_chat_message_enhanced", {
+        "session_id": session_id, 
+        "message": message,
+        "has_profile": user_profile is not None,
+        "has_course": current_course is not None
+    }, session_id)
 
     try:
-        if current_state == SessionState.OBJECTIVES_CAPTURED:
-            print(f"State: OBJECTIVES_CAPTURED. Processing message for objectives using learning_objective_agent.")
-            # Use learning_objective_agent to process the message and extract objectives
-            if learning_objective_agent:
-                # In a real scenario, the agent would take the raw message and context
-                # For simplification, we'll pass the message as a "document"
-                agent_input = {"document": message, "course_context": {}}
-                log_agent_call(learning_objective_agent.name, agent_input, session_id)
-                agent_result = learning_objective_agent.run(agent_input) # Assuming .run() method exists and returns dict
-                log_agent_response(learning_objective_agent.name, agent_result, session_id)
+        # Get current session and context
+        user_context = get_user_context_from_session(session_id)
+        current_step = SessionState(user_context["current_step"])
+        
+        print(f"Session {session_id} current state: {current_step.value}")
+        print(f"Session {session_id} - User Profile: {user_context['user_profile']}")
+        print(f"Session {session_id} - Current Course: {user_context['current_course']}")
 
-                if agent_result and agent_result.get("status") == "success" and agent_result.get("objectives"):
-                    objectives = agent_result["objectives"]
-                    session_state["objectives"] = objectives
-                    agent_response_text = "Okay, I have captured the following objectives:\n" + "\n".join(objectives) + "\n\nWhat type of document would you like to create (e.g., Exam, Quiz)?"
-                    next_state = SessionState.STRUCTURE_PROPOSED
-                    ui_updates_data["taskParameters"] = {"learningObjectives": ", ".join(objectives)}
-                    ui_updates_data["current_agent_id"] = "pedagogie"
-                    print(f"Objectives captured. Transitioning to state: {next_state.value}")
-                else:
-                    agent_response_text = "I couldn't extract clear objectives. Please try rephrasing or be more specific."
-                    print("Learning objective agent failed or returned no objectives. Staying in current state.")
-            else:
-                agent_response_text = "Learning objective agent is not available."
-                print("Learning objective agent is None. Staying in current state.")
+        # If we have new user profile or course data, update session state
+        if user_profile or current_course:
+            state_updates = {}
+            
+            if user_profile:
+                state_updates.update({
+                    "user:profile_id": user_profile.userId,
+                    "user:name": user_profile.name,
+                    "user:email": user_profile.email,
+                    "user:preferences": json.dumps(user_profile.preferences) if user_profile.preferences else "{}"
+                })
+                # Add to memory for long-term storage
+                add_user_to_memory(user_profile.userId, user_profile)
+            
+            if current_course:
+                state_updates.update({
+                    "current_course_id": current_course.id,
+                    "current_course_title": current_course.title,
+                    "current_course_description": current_course.description,
+                    "current_course_level": current_course.level
+                })
+                # Add to memory for long-term storage
+                add_course_to_memory(user_context["user_id"], current_course)
+            
+            if state_updates:
+                update_session_state_adk(session_id, state_updates, "system")
+                # Refresh context after update
+                user_context = get_user_context_from_session(session_id)
 
-        elif current_state == SessionState.STRUCTURE_PROPOSED:
-            print(f"State: STRUCTURE_PROPOSED. Processing message for document type using syllabus_planner_agent (conceptually).")
-            # In a real scenario, syllabus_planner_agent might refine the document type or ask for more details.
-            # For simplification, we'll directly process the message as document type.
-            document_type = message.strip()
-            if document_type:
-                session_state["outputType"] = document_type
-                agent_response_text = f"Understood. You want to create a '{document_type}'. What Bloom's Taxonomy level(s) should the assessment target?"
-                next_state = SessionState.DRAFT_READY
-                ui_updates_data["taskParameters"] = {"outputType": document_type}
-                ui_updates_data["current_agent_id"] = "bloom"
-                print(f"Document type captured. Transitioning to state: {next_state.value}")
-            else:
-                 agent_response_text = "Please specify the type of document you want to create (e.g., Exam, Quiz)."
-                 print("No document type found in message. Staying in current state.")
+        # Prepare enhanced context for agents
+        agent_context = {
+            "session_id": session_id,
+            "user_context": user_context,
+            "message": message,
+            "current_step": current_step.value
+        }
 
-        elif current_state == SessionState.DRAFT_READY:
-             print(f"State: DRAFT_READY. Processing message for Bloom's levels using assessment_generator_agent (conceptually).")
-             # In a real scenario, assessment_generator_agent might validate or refine Bloom's levels.
-             # For simplification, we'll directly process the message as Bloom's level.
-             blooms_level = message.strip()
-             if blooms_level:
-                 session_state["bloomsLevel"] = blooms_level
-                 agent_response_text = f"Targeting Bloom's level(s): {blooms_level}. I can now generate the assessment. Are you ready?"
-                 next_state = SessionState.ASSESSMENT_CREATED
-                 ui_updates_data["taskParameters"] = {"bloomsLevel": blooms_level}
-                 ui_updates_data["current_agent_id"] = "questions"
-                 print(f"Bloom's levels captured. Transitioning to state: {next_state.value}")
-             else:
-                 agent_response_text = "Please specify the Bloom's Taxonomy level(s)."
-                 print("No Bloom's levels found in message. Staying in current state.")
+        # Use root agent to orchestrate the response
+        log_agent_call(root_agent.name, agent_context, session_id)
+        
+        # Pass the enhanced context to the root agent
+        # The root agent can now access session context via its tools
+        agent_result = root_agent.run(
+            inputs={"message": message, "session_id": session_id},
+            state=user_context  # Pass full context as state
+        )
+        
+        log_agent_response(root_agent.name, agent_result, session_id)
 
-        elif current_state == SessionState.ASSESSMENT_CREATED:
-            print(f"State: ASSESSMENT_CREATED. Processing message for generation trigger.")
-            # Assume user confirms readiness to generate
-            if message.lower().strip() in ["yes", "ready", "oui", "prêt"]:
-                agent_response_text = "Generating the assessment now..."
-                ui_updates_data["current_agent_id"] = "createur" # Example: Move to Createur agent visually
-                print("User confirmed readiness. Triggering assessment generation.")
-
-                # Trigger the assessment generation workflow
-                # This is a simplified call; real workflow would use session state data
-                objectives_for_agent = [{"text": obj, "bloom_level": "Understanding"} for obj in session_state.get("objectives", [])] # Basic mapping
-                question_counts_for_agent = {"mcq": 3, "short_answer": 1} # Example counts
-                difficulty_for_agent = "medium" # Example difficulty
-
-                log_tool_call("generate_quiz", {
-                    "objectives": objectives_for_agent,
-                    "question_counts": question_counts_for_agent,
-                    "difficulty": difficulty_for_agent
-                }, session_id)
-                # Call the actual quiz generation tool
-                if tools and hasattr(tools, 'generate_quiz'):
-                    quiz_result = tools.generate_quiz(
-                        objectives=objectives_for_agent,
-                        question_counts=question_counts_for_agent,
-                        difficulty=difficulty_for_agent
-                    )
-                    log_tool_response("generate_quiz", quiz_result, session_id)
-
-                    if quiz_result.get("status") == "success":
-                        generated_exam_data = quiz_result.get("quiz")
-                        session_state["assessments"] = [generated_exam_data] # Store generated exam in session
-                        agent_response_text = "The assessment has been generated."
-                        ui_updates_data["generatedExam"] = generated_exam_data # Send generated exam to UI
-                        next_state = SessionState.COMPLETED # Workflow completed (for this basic flow)
-                        ui_updates_data["current_agent_id"] = "principal" # Example: Move back to Principal agent
-                        print(f"Assessment generated successfully. Transitioning to state: {next_state.value}")
-                    else:
-                        agent_response_text = f"Error generating assessment: {quiz_result.get('error_message', 'Unknown error')}"
-                        next_state = SessionState.ERROR
-                        ui_updates_data["current_agent_id"] = "principal" # Example: Move back to Principal agent
-                        print(f"Assessment generation failed. Transitioning to state: {next_state.value}")
-                else:
-                    agent_response_text = "Assessment generation tool not available."
-                    next_state = SessionState.ERROR
-                    ui_updates_data["current_agent_id"] = "principal" # Example: Move back to Principal agent
-                    print("Assessment generation tool not available. Transitioning to state: ERROR")
-
-            else:
-                agent_response_text = "Please let me know when you are ready to generate the assessment by typing 'yes' or 'ready'."
-                print("User did not confirm readiness. Staying in current state.")
-
-        elif current_state == SessionState.COMPLETED:
-            print(f"State: COMPLETED. Handling message in completed state.")
-            agent_response_text = "The workflow is completed. You can download the generated assessment. What would you like to do next?"
-            # Stay in completed state or transition based on new user input
-            # For now, just acknowledge
-            print("Acknowledging message in COMPLETED state.")
-
-
-        elif current_state == SessionState.ERROR:
-            print(f"State: ERROR. Handling message in error state.")
-            agent_response_text = "An error occurred during the workflow. Please try again or start a new session."
-            # Stay in error state or transition based on user input
-            # For now, just acknowledge
-            print("Acknowledging message in ERROR state.")
-
+        # Process agent result and update session state
+        if agent_result:
+            agent_response_text = agent_result.get("response", "I'm processing your request...")
+            
+            # Update chat context in session state
+            chat_context_updates = user_context.get("chat_context", {})
+            chat_context_updates["last_message"] = message
+            chat_context_updates["last_response"] = agent_response_text
+            
+            state_updates = {
+                "chat_context": chat_context_updates,
+                "temp:last_interaction": f"User: {message} | Agent: {agent_response_text[:100]}..."
+            }
+            
+            # Apply any workflow-specific state changes based on agent result
+            if agent_result.get("next_step"):
+                state_updates["current_step"] = agent_result["next_step"]
+            
+            update_session_state_adk(session_id, state_updates, "agent")
+            
+            # Prepare UI updates
+            ui_updates = agent_result.get("ui_updates", {})
+            
+            return {
+                "response": agent_response_text,
+                "ui_updates": ui_updates,
+                "session_id": session_id,
+                "user_context": user_context
+            }
         else:
-            print(f"Unknown state: {current_state.value}. Staying in current state.")
-
-
-        # Always update the session state at the end
-        session_state["current_state"] = next_state.value
-        session_service.update_session_state(session_id, session_state)
-        print(f"Session {session_id} state updated to: {session_state['current_state']}")
-
+            return {
+                "response": "I encountered an issue processing your request. Please try again.",
+                "ui_updates": {},
+                "session_id": session_id,
+                "user_context": user_context
+            }
 
     except Exception as e:
-        log_error("handle_chat_message", e, session_id)
+        log_error("handle_chat_message_enhanced", e, session_id)
         import traceback
-        traceback.print_exc() # Print traceback for detailed error info
-        agent_response_text = "An internal error occurred while processing your message."
-        session_state["current_state"] = SessionState.ERROR.value
-        session_service.update_session_state(session_id, session_state)
-        ui_updates_data["current_agent_id"] = "principal" # Example: Move back to Principal agent
-        print(f"Transitioning to state: ERROR due to exception.")
+        traceback.print_exc()
+        
+        # Update session to error state using ADK pattern
+        error_state_updates = {
+            "current_step": SessionState.ERROR.value,
+            "temp:last_error": str(e)
+        }
+        try:
+            update_session_state_adk(session_id, error_state_updates, "system")
+        except:
+            pass  # Don't fail on error state update failure
+            
+        return {
+            "response": "An internal error occurred while processing your message.",
+            "ui_updates": {"current_agent_id": "principal"},
+            "session_id": session_id,
+            "user_context": {}
+        }
 
+# ------------------------------------------------------------------------
+# Session Initialization API for External Integration
+# ------------------------------------------------------------------------
 
-    print(f"Exiting handle_chat_message for session {session_id}. Returning response: '{agent_response_text[:50]}...', ui_updates: {ui_updates_data}")
-    return {
-        "response": agent_response_text,
-        "ui_updates": ui_updates_data,
-        "session_id": session_id # Return session_id in the response
-    }
+def initialize_session_for_api(
+    user_id: str,
+    user_profile_data: Optional[Dict[str, Any]] = None,
+    current_course_data: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """
+    Initialize a session for API integration with user profile and course data.
+    
+    Args:
+        user_id: The user's unique identifier
+        user_profile_data: Dict containing user profile information
+        current_course_data: Dict containing current course information
+        
+    Returns:
+        Dict with session_id and initialization status
+    """
+    try:
+        # Convert dicts to proper objects if provided
+        user_profile = None
+        if user_profile_data:
+            user_profile = UserProfile(
+                userId=user_profile_data.get("userId", user_id),
+                name=user_profile_data.get("name", ""),
+                email=user_profile_data.get("email", ""),
+                preferences=user_profile_data.get("preferences", {}),
+                courses=[Course(**course_data) for course_data in user_profile_data.get("courses", [])]
+            )
+        
+        current_course = None
+        if current_course_data:
+            current_course = Course(
+                id=current_course_data.get("id", ""),
+                title=current_course_data.get("title", ""),
+                description=current_course_data.get("description", ""),
+                level=current_course_data.get("level", "")
+            )
+        
+        # Initialize session with proper context
+        session_id = initialize_session_with_user_context(
+            user_id=user_id,
+            user_profile=user_profile,
+            current_course=current_course
+        )
+        
+        log_agent_call("initialize_session_for_api", {
+            "user_id": user_id,
+            "session_id": session_id,
+            "has_profile": user_profile is not None,
+            "has_course": current_course is not None
+        }, session_id)
+        
+        return {
+            "status": "success",
+            "session_id": session_id,
+            "user_id": user_id,
+            "message": "Session initialized successfully with user context"
+        }
+        
+    except Exception as e:
+        log_error("initialize_session_for_api", e, None)
+        return {
+            "status": "error",
+            "error": str(e),
+            "message": "Failed to initialize session"
+        }
+
+def update_session_context(
+    session_id: str,
+    user_profile_data: Optional[Dict[str, Any]] = None,
+    current_course_data: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """
+    Update session context with new user profile or course data.
+    
+    Args:
+        session_id: The session to update
+        user_profile_data: Updated user profile information
+        current_course_data: Updated course information
+        
+    Returns:
+        Dict with update status
+    """
+    try:
+        state_updates = {}
+        
+        if user_profile_data:
+            user_profile = UserProfile(
+                userId=user_profile_data.get("userId", ""),
+                name=user_profile_data.get("name", ""),
+                email=user_profile_data.get("email", ""),
+                preferences=user_profile_data.get("preferences", {}),
+                courses=[Course(**course_data) for course_data in user_profile_data.get("courses", [])]
+            )
+            
+            state_updates.update({
+                "user:profile_id": user_profile.userId,
+                "user:name": user_profile.name,
+                "user:email": user_profile.email,
+                "user:preferences": json.dumps(user_profile.preferences)
+            })
+            
+            # Add to memory
+            add_user_to_memory(user_profile.userId, user_profile)
+        
+        if current_course_data:
+            current_course = Course(
+                id=current_course_data.get("id", ""),
+                title=current_course_data.get("title", ""),
+                description=current_course_data.get("description", ""),
+                level=current_course_data.get("level", "")
+            )
+            
+            state_updates.update({
+                "current_course_id": current_course.id,
+                "current_course_title": current_course.title,
+                "current_course_description": current_course.description,
+                "current_course_level": current_course.level
+            })
+            
+            # Add to memory
+            context = get_user_context_from_session(session_id)
+            add_course_to_memory(context["user_id"], current_course)
+        
+        if state_updates:
+            update_session_state_adk(session_id, state_updates, "api")
+        
+        log_agent_call("update_session_context", {
+            "session_id": session_id,
+            "updated_fields": list(state_updates.keys())
+        }, session_id)
+        
+        return {
+            "status": "success",
+            "session_id": session_id,
+            "updated_fields": list(state_updates.keys()),
+            "message": "Session context updated successfully"
+        }
+        
+    except Exception as e:
+        log_error("update_session_context", e, session_id)
+        return {
+            "status": "error",
+            "error": str(e),
+            "message": "Failed to update session context"
+        }
+
+def get_session_info(session_id: str) -> Dict[str, Any]:
+    """
+    Get comprehensive session information for API consumers.
+    
+    Args:
+        session_id: The session to retrieve
+        
+    Returns:
+        Dict with session information and context
+    """
+    try:
+        user_context = get_user_context_from_session(session_id)
+        
+        return {
+            "status": "success",
+            "session_id": session_id,
+            "user_context": user_context,
+            "message": "Session information retrieved successfully"
+        }
+        
+    except Exception as e:
+        log_error("get_session_info", e, session_id)
+        return {
+            "status": "error",
+            "error": str(e),
+            "message": "Failed to retrieve session information"
+        }
+
+# Legacy function for backward compatibility
+def handle_chat_message(session_id: str, message: str) -> Dict[str, Any]:
+    """Legacy chat message handler - uses enhanced version internally."""
+    return handle_chat_message_enhanced(session_id, message)

@@ -21,6 +21,14 @@ import agentic_workflow_system as aws
 import document_pipeline as dp
 import tools
 
+# Import enhanced API
+try:
+    from enhanced_api import app as enhanced_api_app
+    ENHANCED_API_AVAILABLE = True
+except ImportError:
+    ENHANCED_API_AVAILABLE = False
+    logger.warning("Enhanced API not available. Install FastAPI and uvicorn to use API mode.")
+
 def setup_argparse() -> argparse.ArgumentParser:
     """Set up command line argument parsing."""
     parser = argparse.ArgumentParser(description='Agentic Workflow System for Course Planning and Assessment')
@@ -48,6 +56,13 @@ def setup_argparse() -> argparse.ArgumentParser:
     # Test mode command
     test_parser = subparsers.add_parser('test', help='Run tests')
     test_parser.add_argument('--test-type', help='Type of test to run', choices=['document', 'all'], default='all')
+    
+    # Enhanced API server command
+    api_parser = subparsers.add_parser('api', help='Start enhanced API server')
+    api_parser.add_argument('--host', help='Host to bind to', default='0.0.0.0')
+    api_parser.add_argument('--port', help='Port to bind to', type=int, default=8000)
+    api_parser.add_argument('--reload', help='Enable auto-reload', action='store_true')
+    api_parser.add_argument('--log-level', help='Log level', choices=['debug', 'info', 'warning', 'error'], default='info')
     
     return parser
 
@@ -354,6 +369,36 @@ def start_interactive_mode() -> None:
         else:
             logger.info("Invalid choice, please try again")
 
+def start_enhanced_api_server(args: argparse.Namespace) -> None:
+    """Start the enhanced API server."""
+    if not ENHANCED_API_AVAILABLE:
+        logger.error("Enhanced API not available. Please install FastAPI and uvicorn:")
+        logger.error("pip install fastapi uvicorn")
+        sys.exit(1)
+    
+    logger.info("Starting Enhanced Pedagogical Agent API Server...")
+    logger.info(f"Host: {args.host}")
+    logger.info(f"Port: {args.port}")
+    logger.info(f"Reload: {args.reload}")
+    logger.info(f"Log Level: {args.log_level}")
+    
+    try:
+        import uvicorn
+        uvicorn.run(
+            "enhanced_api:app",
+            host=args.host,
+            port=args.port,
+            reload=args.reload,
+            log_level=args.log_level
+        )
+    except ImportError:
+        logger.error("uvicorn not available. Please install uvicorn:")
+        logger.error("pip install uvicorn")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Failed to start API server: {e}")
+        sys.exit(1)
+
 def main() -> None:
     """Main entry point for the application."""
     parser = setup_argparse()
@@ -372,6 +417,8 @@ def main() -> None:
         run_tests(args)
     elif args.command == 'interactive':
         start_interactive_mode()
+    elif args.command == 'api':
+        start_enhanced_api_server(args)
     else:
         # No command specified, show help
         parser.print_help()

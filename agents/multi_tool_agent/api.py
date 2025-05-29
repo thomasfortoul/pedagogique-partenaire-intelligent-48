@@ -11,7 +11,7 @@ from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, SseServerParams
 
 import agentic_workflow_system as aws
 import tools
-from models import UserInteractionState, Course, TaskDocument
+from models import UserInteractionState, Course, TaskDocument, UserProfile # Import UserProfile
 
 app = FastAPI()
 
@@ -27,13 +27,29 @@ app.add_middleware(
 # In-memory store for session states (for demonstration purposes)
 session_states: Dict[str, UserInteractionState] = {}
 
-@app.post("/agent_chat")
-async def agent_chat(request: Request):
+@app.post("/run") # Renamed from /agent_chat as per frontend's /run endpoint
+async def run_agent_workflow(request: Request):
     data = await request.json()
+    app_name = data.get("app_name") # Expecting app_name from frontend
+    user_id = data.get("user_id")
     session_id = data.get("session_id")
-    user_message = data.get("message")
+    new_message_parts = data.get("new_message", {}).get("parts", [])
+    user_message = ""
+    for part in new_message_parts:
+        if "text" in part:
+            user_message += part["text"]
 
-    log_api_request("/agent_chat", {"session_id": session_id, "message": user_message}, session_id)
+    course_data = data.get("course_data")
+    user_profile_data = data.get("user_profile_data")
+
+    log_api_request("/run", {
+        "app_name": app_name,
+        "user_id": user_id,
+        "session_id": session_id,
+        "new_message": user_message,
+        "course_data": course_data,
+        "user_profile_data": user_profile_data
+    }, session_id)
 
     if not user_message:
         return JSONResponse(content={"detail": "Message cannot be empty"}, status_code=400)
@@ -41,12 +57,24 @@ async def agent_chat(request: Request):
     if not session_id or session_id not in session_states:
         # Initialize a new session
         session_id = str(uuid.uuid4())
-        initial_state = aws.initialize_session("web_user")
+        # Pass user_id and potentially other initial profile data to initialize_session
+        initial_state = aws.initialize_session(user_id) # Pass user_id
         session_states[session_id] = initial_state
         print(f"Initialized new session: {session_id}")
     
     current_state = session_states[session_id]
+    
+    # Update current_state with course and user profile data
+    if course_data:
+        current_state.current_course = Course(**course_data)
+    if user_profile_data:
+        # Ensure courses within user_profile_data are also Course objects
+        user_profile_data['courses'] = [Course(**c) for c in user_profile_data.get('courses', [])]
+        current_state.user_profile = UserProfile(**user_profile_data)
+
     print(f"Session {session_id} - Current state: {current_state.current_step}")
+    print(f"Session {session_id} - Current Course: {current_state.current_course.title if current_state.current_course else 'N/A'}")
+    print(f"Session {session_id} - User Profile: {current_state.user_profile.userId if current_state.user_profile else 'N/A'}")
 
     try:
         # Simulate agent processing based on the current step
@@ -127,7 +155,7 @@ async def agent_chat(request: Request):
         })
 
     except Exception as e:
-        log_error("agent_chat", e, session_id)
+        log_error("run_agent_workflow", e, session_id)
         return JSONResponse(content={"detail": str(e)}, status_code=500)
 
     finally:
@@ -137,34 +165,35 @@ async def agent_chat(request: Request):
             "response": response_content,
             "ui_updates": ui_updates
         }
-        log_api_response("/agent_chat", response_content, session_id)
+        log_api_response("/run", response_content, session_id)
 
-@app.post("/generate-quiz")
-async def generate_quiz_endpoint(request: Request):
-    """
-    Endpoint to generate a quiz using the multi_tool_agent's generate_quiz tool.
-    This is a direct call, not part of the chat workflow.
-    """
-    data = await request.json()
-    objectives = data.get("objectives")
-    question_counts = data.get("question_counts")
-    difficulty = data.get("difficulty", "medium")
+# The /generate-quiz endpoint remains as is, as it's a direct tool call.
+# @app.post("/generate-quiz")
+# async def generate_quiz_endpoint(request: Request):
+#     """
+#     Endpoint to generate a quiz using the multi_tool_agent's generate_quiz tool.
+#     This is a direct call, not part of the chat workflow.
+#     """
+#     data = await request.json()
+#     objectives = data.get("objectives")
+#     question_counts = data.get("question_counts")
+#     difficulty = data.get("difficulty", "medium")
 
-    if not objectives or not question_counts:
-        return JSONResponse(content={"detail": "Objectives and question_counts are required"}, status_code=400)
+#     if not objectives or not question_counts:
+#         return JSONResponse(content={"detail": "Objectives and question_counts are required"}, status_code=400)
 
-    try:
-        log_api_request("/generate-quiz", {"objectives": objectives, "question_counts": question_counts, "difficulty": difficulty})
-        result = tools.generate_quiz(objectives, question_counts, difficulty)
-        if result["status"] == "success":
-            log_api_response("/generate-quiz", result["quiz"])
-            return JSONResponse(content=result["quiz"])
-        else:
-            log_api_response("/generate-quiz", {"detail": result.get("error_message", "Failed to generate quiz")}, status_code=500)
-            return JSONResponse(content={"detail": result.get("error_message", "Failed to generate quiz")}, status_code=500)
-    except Exception as e:
-        log_error("generate_quiz_endpoint", e)
-        return JSONResponse(content={"detail": str(e)}, status_code=500)
+#     try:
+#         log_api_request("/generate-quiz", {"objectives": objectives, "question_counts": question_counts, "difficulty": difficulty})
+#         result = tools.generate_quiz(objectives, question_counts, difficulty)
+#         if result["status"] == "success":
+#             log_api_response("/generate-quiz", result["quiz"])
+#             return JSONResponse(content=result["quiz"])
+#         else:
+#             log_api_response("/generate-quiz", {"detail": result.get("error_message", "Failed to generate quiz")}, status_code=500)
+#             return JSONResponse(content={"detail": result.get("error_message", "Failed to generate quiz")}, status_code=500)
+#     except Exception as e:
+#         log_error("generate_quiz_endpoint", e)
+#         return JSONResponse(content={"detail": str(e)}, status_code=500)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
