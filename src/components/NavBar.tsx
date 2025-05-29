@@ -1,10 +1,10 @@
-
+"use client"
 import React, { useEffect } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { BookOpenText, Layout, LogOut } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { AuthContext } from '../App';
+import { useAuth } from '../lib/auth/auth-context'; // Import useAuth
 
 const NavBar = () => {
   const location = useLocation();
@@ -17,24 +17,47 @@ const NavBar = () => {
   const courseId = coursePath ? coursePath[1] : (dashboardPath ? dashboardPath[1] : null);
 
   // Get authentication state from global context
-  const { isLoggedIn, setIsLoggedIn, refreshSession } = React.useContext(AuthContext);
+  const { user, signOut, isLoading } = useAuth(); // Use user, signOut, and isLoading from useAuth
   
-  // Refresh the session on any navigation or interaction with the navbar
-  useEffect(() => {
-    if (isLoggedIn) {
-      refreshSession();
-    }
-  }, [location.pathname, isLoggedIn, refreshSession]);
+  // No need for explicit session refresh here, AuthProvider handles it
+  // useEffect(() => {
+  //   if (user) { // Check if user exists
+  //     // refreshSession(); // This logic is now handled internally by AuthProvider
+  //   }
+  // }, [location.pathname, user]); // Depend on user instead of isLoggedIn
 
-  const handleLogout = () => {
-    // Logout using the context
-    setIsLoggedIn(false);
-    toast({
-      title: "Déconnexion réussie",
-      description: "À bientôt sur ERGI!"
-    });
-    navigate('/');
+  const handleLogout = async () => { // Made async
+    try {
+      await signOut(); // Call signOut from useAuth
+      toast({
+        title: "Déconnexion réussie",
+        description: "À bientôt sur ERGI!"
+      });
+      navigate('/');
+    } catch (error) {
+      console.error('[NavBar] Error during logout:', error);
+      toast({
+        title: "Erreur de déconnexion",
+        description: "Une erreur est survenue lors de la déconnexion.",
+        variant: "destructive"
+      });
+    }
   };
+
+  // Show loading state if authentication is still in progress
+  if (isLoading) {
+    return (
+      <header className="sticky top-0 z-50 w-full bg-white border-b shadow-sm">
+        <div className="container flex h-16 items-center justify-between">
+          <Link to="/" className="flex items-center space-x-2">
+            <BookOpenText className="h-8 w-8 text-ergi-primary" />
+            <span className="font-bold text-xl text-ergi-primary">ERGI</span>
+          </Link>
+          <div>Chargement...</div>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white border-b shadow-sm">
@@ -45,7 +68,7 @@ const NavBar = () => {
         </Link>
         
         {/* Only show main feature navigation for logged in users */}
-        {isLoggedIn ? (
+        {user ? ( // Check for user existence
           <nav className="hidden md:flex items-center space-x-6">
             <Link
               to="/dashboard2"
@@ -74,7 +97,7 @@ const NavBar = () => {
         ) : null}
         
         <div className="flex items-center space-x-2">
-          {isLoggedIn ? (
+          {user ? ( // Check for user existence
             <Button
               variant="outline"
               size="sm"

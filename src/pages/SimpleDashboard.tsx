@@ -1,4 +1,4 @@
-
+"use client"
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -9,11 +9,11 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AuthContext } from '@/App';
 import NavBar from '@/components/NavBar';
 import { ArrowLeft, FileText, Calendar, BookOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Course } from '@/types/course';
+import { useAuth } from '@/lib/auth/auth-context'; // Import useAuth
 
 // Helper function to initialize demo courses in localStorage if needed
 const initializeDemoCourses = () => {
@@ -55,13 +55,22 @@ const initializeDemoCourses = () => {
 const SimpleDashboard = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-  const { isLoggedIn } = React.useContext(AuthContext);
+  const { user, isLoading } = useAuth(); // Use user and isLoading from useAuth
   const { toast } = useToast();
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Redirect if not authenticated and not loading
+  useEffect(() => {
+    if (!isLoading && !user) {
+      navigate('/login');
+    }
+  }, [user, isLoading, navigate]);
+
   // Initialize demo courses and load course data from localStorage
   useEffect(() => {
+    if (!user) return; // Only fetch if user is authenticated
+
     // Initialize demo courses if needed
     initializeDemoCourses();
     
@@ -101,9 +110,9 @@ const SimpleDashboard = () => {
       });
       navigate('/dashboard2');
     }
-  }, [courseId, navigate, toast]);
+  }, [courseId, navigate, toast, user]); // Add user to dependency array
 
-  if (loading) {
+  if (loading || isLoading || !user) { // Add isLoading and !user to condition
     return (
       <div className="min-h-screen flex flex-col">
         <NavBar />
@@ -169,55 +178,53 @@ const SimpleDashboard = () => {
           <CardContent className="pt-6 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Course Information */}
-              <div className="space-y-4">
-                {course.description && (
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-500">Description</h4>
-                    <p className="mt-1">{course.description}</p>
-                  </div>
-                )}
-                
-                {course.level && (
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-semibold text-gray-500">Niveau:</h4>
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      {course.level}
-                    </span>
-                  </div>
-                )}
-                
-                {course.session && (
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-ergi-primary" />
-                    <h4 className="text-sm font-semibold text-gray-500">Session:</h4>
-                    <span>{course.session}</span>
-                  </div>
-                )}
+              {course.description && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-500">Description</h4>
+                  <p className="mt-1">{course.description}</p>
+                </div>
+              )}
+              
+              {course.level && (
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-semibold text-gray-500">Niveau:</h4>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                    {course.level}
+                  </span>
+                </div>
+              )}
+              
+              {course.session && (
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-ergi-primary" />
+                  <h4 className="text-sm font-semibold text-gray-500">Session:</h4>
+                  <span>{course.session}</span>
+                </div>
+              )}
+            </div>
+            
+            {/* Documents Count */}
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-ergi-primary/10 rounded-lg">
+                  <BookOpen className="h-5 w-5 text-ergi-primary" />
+                </div>
+                <div>
+                  <h4 className="font-medium">Documents</h4>
+                  <p className="text-sm text-gray-600">
+                    {course.documents?.length || 0} document{(course.documents?.length || 0) !== 1 ? 's' : ''} disponible{(course.documents?.length || 0) !== 1 ? 's' : ''}
+                  </p>
+                </div>
               </div>
               
-              {/* Documents Count */}
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-ergi-primary/10 rounded-lg">
-                    <BookOpen className="h-5 w-5 text-ergi-primary" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium">Documents</h4>
-                    <p className="text-sm text-gray-600">
-                      {course.documents?.length || 0} document{(course.documents?.length || 0) !== 1 ? 's' : ''} disponible{(course.documents?.length || 0) !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex">
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={() => navigate(`/course/${courseId}`)}
-                  >
-                    Voir les documents
-                  </Button>
-                </div>
+              <div className="flex">
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => navigate(`/course/${courseId}`)}
+                >
+                  Voir les documents
+                </Button>
               </div>
             </div>
           </CardContent>

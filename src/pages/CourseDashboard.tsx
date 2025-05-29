@@ -1,4 +1,4 @@
-
+"use client"
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -10,22 +10,31 @@ import {
   CardFooter
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AuthContext } from '@/App';
 import NavBar from '@/components/NavBar';
 import { ArrowLeft, FileText, Settings, PenLine, BookOpen, Users, Clock, Award } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Course } from '@/types/course';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/lib/auth/auth-context'; // Import useAuth
 
 const CourseDashboard = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-  const { isLoggedIn } = React.useContext(AuthContext);
+  const { user, isLoading } = useAuth(); // Use user and isLoading from useAuth
   const { toast } = useToast();
   const [course, setCourse] = useState<Course | null>(null);
   
+  // Redirect if not authenticated and not loading
+  useEffect(() => {
+    if (!isLoading && !user) {
+      navigate('/login');
+    }
+  }, [user, isLoading, navigate]);
+
   // Récupérer les données du cours depuis le localStorage
   useEffect(() => {
+    if (!user) return; // Only fetch if user is authenticated
+
     const storedCoursesString = localStorage.getItem('courses');
     if (storedCoursesString) {
       try {
@@ -49,7 +58,7 @@ const CourseDashboard = () => {
     } else {
       navigate('/dashboard2');
     }
-  }, [courseId, navigate, toast]);
+  }, [courseId, navigate, toast, user]); // Add user to dependency array
   
   // Données d'exemple pour les statistiques (à remplacer par des données réelles plus tard)
   const courseStatistics = {
@@ -68,7 +77,7 @@ const CourseDashboard = () => {
   ];
   
   // Si le cours n'est pas encore chargé, afficher un écran de chargement
-  if (!course) {
+  if (isLoading || !user || !course) { // Add isLoading and !user to condition
     return (
       <div className="min-h-screen flex flex-col">
         <NavBar />

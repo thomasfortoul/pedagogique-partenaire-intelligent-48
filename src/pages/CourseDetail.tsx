@@ -1,3 +1,4 @@
+"use client"
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -8,18 +9,18 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AuthContext } from '@/App';
 import NavBar from '@/components/NavBar';
 import { ArrowLeft, BookOpenText, Edit, FileText, Settings, Layout } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Course, Document } from '@/types/course';
 import DocumentList from '@/components/DocumentList';
 import UploadDocumentForm from '@/components/UploadDocumentForm';
+import { useAuth } from '@/lib/auth/auth-context'; // Import useAuth
 
 const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-  const { isLoggedIn } = React.useContext(AuthContext);
+  const { user, isLoading } = useAuth(); // Use user and isLoading from useAuth
   const { toast } = useToast();
   const [course, setCourse] = useState<Course | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -33,8 +34,17 @@ const CourseDetail = () => {
   const totalDocumentsSize = documents.reduce((total, doc) => total + doc.fileSize, 0);
   const totalSizeMB = totalDocumentsSize / (1024 * 1024);
 
+  // Redirect if not authenticated and not loading
+  useEffect(() => {
+    if (!isLoading && !user) {
+      navigate('/login');
+    }
+  }, [user, isLoading, navigate]);
+
   // Get stored courses from localStorage - this is a temporary solution until we connect to Supabase
   useEffect(() => {
+    if (!user) return; // Only fetch if user is authenticated
+
     const storedCoursesString = localStorage.getItem('courses');
     if (storedCoursesString) {
       try {
@@ -59,7 +69,7 @@ const CourseDetail = () => {
     } else {
       navigate('/dashboard2');
     }
-  }, [courseId, navigate, toast]);
+  }, [courseId, navigate, toast, user]); // Add user to dependency array
 
   const handleUploadComplete = (newDocument: Document) => {
     if (!course) return;
@@ -122,7 +132,7 @@ const CourseDetail = () => {
     }
   };
 
-  if (!course) {
+  if (isLoading || !user || !course) { // Add isLoading and !user to condition
     return (
       <div className="min-h-screen flex flex-col">
         <NavBar />

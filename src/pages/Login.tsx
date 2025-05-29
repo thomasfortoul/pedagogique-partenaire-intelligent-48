@@ -1,5 +1,5 @@
-
-import React from 'react';
+"use client"
+import { useState, useEffect, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -16,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { BookOpenText } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { AuthContext } from '../App';
+import { useAuth } from '@/lib/auth/auth-context';
 
 // Validation schema
 const loginSchema = z.object({
@@ -29,9 +29,11 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { setIsLoggedIn, refreshSession } = React.useContext(AuthContext);
+  const { signIn } = useAuth();
 
-  // Initialize the form with validation schema
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -40,20 +42,39 @@ const Login = () => {
     },
   });
 
-  // Handle form submission
-  const onSubmit = (data: LoginFormValues) => {
-    console.log('Tentative de connexion avec:', data);
+  const onSubmit = async (data: LoginFormValues) => {
+    setIsLoading(true);
+    setError(null);
     
-    // Simulated login success for MVP testing purposes
-    toast({
-      title: "Connexion réussie",
-      description: "Bienvenue sur ERGI, votre assistant pédagogique.",
-    });
-    
-    // Set login state in context
-    setIsLoggedIn(true);
-    
-    navigate('/dashboard2');  // Changed from '/dashboard' to '/dashboard2'
+    try {
+      const { error } = await signIn(data.email, data.password);
+      
+      if (error) {
+        console.error('[Login] Error signing in:', error);
+        setError(error.message);
+        toast({
+          title: "Erreur de connexion",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Connexion réussie",
+          description: "Bienvenue sur ERGI, votre assistant pédagogique.",
+        });
+        navigate('/dashboard2');
+      }
+    } catch (err) {
+      console.error('[Login] Exception during sign in:', err);
+      setError('An unexpected error occurred. Please try again.');
+      toast({
+        title: "Erreur inattendue",
+        description: "Une erreur inattendue est survenue. Veuillez réessayer.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -110,12 +131,19 @@ const Login = () => {
                 )}
               />
               
+              {error && (
+                <div className="rounded-md bg-red-50 p-4 mb-4">
+                  <div className="text-sm text-red-700">{error}</div>
+                </div>
+              )}
+
               <Button 
                 type="submit" 
                 className="w-full bg-ergi-primary hover:bg-ergi-dark"
                 data-testid="login-submit"
+                disabled={isLoading}
               >
-                Se connecter
+                {isLoading ? 'Connexion en cours...' : 'Se connecter'}
               </Button>
             </form>
           </Form>

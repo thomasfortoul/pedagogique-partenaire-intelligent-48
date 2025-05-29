@@ -1,4 +1,4 @@
-
+"use client"
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -33,7 +33,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { BookOpen, BookOpenText, Edit, Plus, Trash2, User } from 'lucide-react';
 import NavBar from '@/components/NavBar';
 import { useToast } from '@/hooks/use-toast';
-import { AuthContext } from '../App';
+import { useAuth } from '../lib/auth/auth-context'; // Import useAuth
 import CourseCard from '@/components/CourseCard';
 import CourseForm from '@/components/CourseForm';
 import { Course } from '@/types/course';
@@ -48,7 +48,7 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 
 const Dashboard2 = () => {
   const { toast } = useToast();
-  const { isLoggedIn } = React.useContext(AuthContext);
+  const { user, isLoading, supabase } = useAuth(); // Use user, isLoading, and supabase from useAuth
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isAddCourseOpen, setIsAddCourseOpen] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -57,9 +57,27 @@ const Dashboard2 = () => {
 
   // Teacher profile information
   const [teacher, setTeacher] = useState({
-    firstName: 'Marie',
-    lastName: 'Durand'
+    firstName: user?.user_metadata?.firstName || 'Marie', // Initialize from Supabase user_metadata
+    lastName: user?.user_metadata?.lastName || 'Durand' // Initialize from Supabase user_metadata
   });
+
+  // Redirect if not authenticated and not loading
+  useEffect(() => {
+    if (!isLoading && !user) {
+      // This redirect is handled by ProtectedRoute in App.tsx, but good to have a fallback
+      // navigate('/login'); 
+    }
+  }, [user, isLoading]);
+
+  // Update teacher state when user changes (e.g., after login or profile update)
+  useEffect(() => {
+    if (user) {
+      setTeacher({
+        firstName: user.user_metadata?.firstName || 'Marie',
+        lastName: user.user_metadata?.lastName || 'Durand'
+      });
+    }
+  }, [user]);
 
   // Load courses from localStorage on initial render
   useEffect(() => {
@@ -84,18 +102,45 @@ const Dashboard2 = () => {
   });
 
   // Handle profile form submission
-  const onProfileSubmit = (data: ProfileFormValues) => {
-    setTeacher({
-      firstName: data.firstName,
-      lastName: data.lastName,
-    });
+  const onProfileSubmit = async (data: ProfileFormValues) => { // Made async
+    try {
+      // Update Supabase user metadata
+      const { error } = await supabase.auth.updateUser({ // Corrected: use supabase.auth.updateUser
+        data: {
+          firstName: data.firstName,
+          lastName: data.lastName
+        }
+      });
 
-    toast({
-      title: "Profil mis à jour",
-      description: "Vos informations ont été mises à jour avec succès.",
-    });
+      if (error) {
+        console.error('[Dashboard2] Error updating profile:', error);
+        toast({
+          title: "Erreur de mise à jour du profil",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
 
-    setIsEditProfileOpen(false);
+      setTeacher({
+        firstName: data.firstName,
+        lastName: data.lastName,
+      });
+
+      toast({
+        title: "Profil mis à jour",
+        description: "Vos informations ont été mises à jour avec succès.",
+      });
+
+      setIsEditProfileOpen(false);
+    } catch (err) {
+      console.error('[Dashboard2] Exception during profile update:', err);
+      toast({
+        title: "Erreur inattendue",
+        description: "Une erreur inattendue est survenue lors de la mise à jour du profil.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Open profile edit dialog
@@ -170,6 +215,21 @@ const Dashboard2 = () => {
       description: "Le cours a été supprimé avec succès.",
     });
   };
+
+  if (isLoading || !user) { // Add isLoading and !user to condition
+    return (
+      <div className="min-h-screen flex flex-col">
+        <NavBar />
+        <div className="container mx-auto px-4 md:px-6 py-8">
+          <Card>
+            <CardContent className="flex items-center justify-center p-10">
+              <p>Chargement du tableau de bord...</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">

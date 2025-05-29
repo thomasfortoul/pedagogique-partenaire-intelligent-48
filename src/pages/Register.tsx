@@ -1,5 +1,5 @@
-
-import React from 'react';
+"use client"
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { BookOpenText } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useAuth } from '@/lib/auth/auth-context'; // Import useAuth
 
 // Validation schema
 const registerSchema = z.object({
@@ -40,6 +41,10 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 const Register = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { signUp } = useAuth(); // Use the useAuth hook
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Initialize the form with validation schema
   const form = useForm<RegisterFormValues>({
@@ -54,16 +59,43 @@ const Register = () => {
   });
 
   // Handle form submission
-  const onSubmit = (data: RegisterFormValues) => {
-    console.log('Données d\'inscription:', data);
+  const onSubmit = async (data: RegisterFormValues) => { // Made async
+    setIsLoading(true);
+    setError(null);
     
-    // Simulated registration success for MVP testing purposes
-    toast({
-      title: "Inscription réussie!",
-      description: "Votre compte a été créé avec succès. Vous pouvez maintenant vous connecter.",
-    });
-    
-    navigate('/login');
+    try {
+      const { error } = await signUp(data.email, data.password, {
+        data: {
+          firstName: data.name // Pass name as firstName
+        }
+      });
+      
+      if (error) {
+        console.error('[Register] Error signing up:', error);
+        setError(error.message);
+        toast({
+          title: "Erreur d'inscription",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Inscription réussie!",
+          description: "Votre compte a été créé avec succès. Vous pouvez maintenant vous connecter.",
+        });
+        navigate('/login');
+      }
+    } catch (err) {
+      console.error('[Register] Exception during sign up:', err);
+      setError('An unexpected error occurred. Please try again.');
+      toast({
+        title: "Erreur inattendue",
+        description: "Une erreur inattendue est survenue. Veuillez réessayer.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -180,12 +212,19 @@ const Register = () => {
                 )}
               />
               
+              {error && (
+                <div className="rounded-md bg-red-50 p-4 mb-4">
+                  <div className="text-sm text-red-700">{error}</div>
+                </div>
+              )}
+
               <Button 
                 type="submit" 
                 className="w-full bg-ergi-primary hover:bg-ergi-dark"
                 data-testid="register-submit"
+                disabled={isLoading}
               >
-                S'inscrire
+                {isLoading ? 'Inscription en cours...' : 'S\'inscrire'}
               </Button>
             </form>
           </Form>
