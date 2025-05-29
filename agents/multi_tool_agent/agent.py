@@ -3,6 +3,7 @@ from zoneinfo import ZoneInfo
 from typing import List, Dict, Any, Optional
 import uuid
 import json
+from .logger import log_agent_call, log_agent_response, log_tool_call, log_tool_response, log_error
 
 from google.adk.agents import Agent, LlmAgent
 from google.adk.tools import google_search, FunctionTool
@@ -329,7 +330,14 @@ def hello_world():
 # -------------------------------------------------------------------------
 
 # Learning Objective Agent
-learning_objective_agent = LlmAgent(
+class LoggingLlmAgent(LlmAgent):
+    def run(self, *args, **kwargs):
+        log_agent_call(self.name, {"args": args, "kwargs": kwargs})
+        result = super().run(*args, **kwargs)
+        log_agent_response(self.name, {"output": result.output.text if result.output else None, "tool_code": result.tool_code}, session_id=kwargs.get('session_id'))
+        return result
+
+learning_objective_agent = LoggingLlmAgent(
     name="learning_objective_agent",
     model="gemini-2.0-flash-exp",
     description="Creates Bloom's-aligned learning objectives based on course topics and goals.",
@@ -344,7 +352,14 @@ learning_objective_agent = LlmAgent(
 )
 
 # Course Planning Agent
-course_planning_agent = Agent(
+class LoggingAgent(Agent):
+    def run(self, *args, **kwargs):
+        log_agent_call(self.name, {"args": args, "kwargs": kwargs})
+        result = super().run(*args, **kwargs)
+        log_agent_response(self.name, {"output": result.output.text if result.output else None, "tool_code": result.tool_code}, session_id=kwargs.get('session_id'))
+        return result
+
+course_planning_agent = LoggingAgent(
     name="course_planning_agent",
     model="gemini-2.0-flash-exp",
     description="Designs course structures with modules, topics, and activities based on learning objectives.",
@@ -359,7 +374,7 @@ course_planning_agent = Agent(
 )
 
 # Assessment Agent
-assessment_agent = Agent(
+assessment_agent = LoggingAgent(
     name="assessment_agent",
     model="gemini-2.0-flash-exp",
     description="Creates various assessment types (quizzes, exams, assignments) aligned with learning objectives.",
@@ -374,7 +389,7 @@ assessment_agent = Agent(
 )
 
 # Course Management Agent
-course_management_agent = Agent(
+course_management_agent = LoggingAgent(
     name="course_management_agent",
     model="gemini-2.0-flash-exp",
     description="Helps users view, select, and manage courses.",
@@ -389,7 +404,7 @@ course_management_agent = Agent(
 )
 
 # Create a dedicated search agent that only uses google_search
-search_agent = Agent(
+search_agent = LoggingAgent(
     name="search_agent",
     model="gemini-2.0-flash-exp",
     description="Performs web searches to find information about educational topics.",
@@ -404,7 +419,7 @@ search_agent = Agent(
 )
 
 # Educational Tools Agent
-educational_tools_agent = Agent(
+educational_tools_agent = LoggingAgent(
     name="educational_tools_agent",
     model="gemini-2.0-flash-exp",
     description="Provides tools for course planning, objectives, and assessment.",
@@ -428,7 +443,7 @@ educational_tools_agent = Agent(
 )
 
 # Root agent that orchestrates the specialized agents
-root_agent = Agent(
+root_agent = LoggingAgent(
     name="educational_design_assistant",
     model="gemini-2.0-flash-exp",
     description="Educational design assistant that helps with course planning, objectives, and assessment creation.",

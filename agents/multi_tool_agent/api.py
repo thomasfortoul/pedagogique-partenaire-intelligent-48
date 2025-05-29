@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, Any, List, Optional
 import uuid
+from .logger import log_api_request, log_api_response, log_error
 
 from google.adk.agents.llm_agent import LlmAgent
 from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, SseServerParams
@@ -31,6 +32,8 @@ async def agent_chat(request: Request):
     data = await request.json()
     session_id = data.get("session_id")
     user_message = data.get("message")
+
+    log_api_request("/agent_chat", {"session_id": session_id, "message": user_message}, session_id)
 
     if not user_message:
         return JSONResponse(content={"detail": "Message cannot be empty"}, status_code=400)
@@ -124,8 +127,17 @@ async def agent_chat(request: Request):
         })
 
     except Exception as e:
-        print(f"Error in agent_chat: {e}")
+        log_error("agent_chat", e, session_id)
         return JSONResponse(content={"detail": str(e)}, status_code=500)
+
+    finally:
+        # Log the response before sending it
+        response_content = {
+            "session_id": session_id,
+            "response": response_content,
+            "ui_updates": ui_updates
+        }
+        log_api_response("/agent_chat", response_content, session_id)
 
 @app.post("/generate-quiz")
 async def generate_quiz_endpoint(request: Request):
@@ -142,13 +154,16 @@ async def generate_quiz_endpoint(request: Request):
         return JSONResponse(content={"detail": "Objectives and question_counts are required"}, status_code=400)
 
     try:
+        log_api_request("/generate-quiz", {"objectives": objectives, "question_counts": question_counts, "difficulty": difficulty})
         result = tools.generate_quiz(objectives, question_counts, difficulty)
         if result["status"] == "success":
+            log_api_response("/generate-quiz", result["quiz"])
             return JSONResponse(content=result["quiz"])
         else:
+            log_api_response("/generate-quiz", {"detail": result.get("error_message", "Failed to generate quiz")}, status_code=500)
             return JSONResponse(content={"detail": result.get("error_message", "Failed to generate quiz")}, status_code=500)
     except Exception as e:
-        print(f"Error generating quiz: {e}")
+        log_error("generate_quiz_endpoint", e)
         return JSONResponse(content={"detail": str(e)}, status_code=500)
 
 if __name__ == "__main__":

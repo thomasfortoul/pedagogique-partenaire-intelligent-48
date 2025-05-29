@@ -4,7 +4,7 @@
 
 *   **Project Goal**: To build an AI-powered system for teachers to generate educational materials (exercises, quizzes, exams, course outlines) with a focus on pedagogical soundness and alignment.
 *   **Core Components**: The system consists of a Python AI agent system (`agents/`) and a React user interface (`src/`).
-*   **Intended Architecture**: The UI will interact with the agent system via a backend API layer (currently not present in the provided codebase structure).
+*   **Intended Architecture**: The UI will interact with the AI Agent System (which exposes its own API endpoints).
 *   **Key Principles**: Leverages Google ADK concepts for modularity, context management, and orchestration; emphasizes pedagogical principles like Constructive Alignment and Bloom's Taxonomy. **Development is guided by specific rules regarding process, ADK documentation, and pedagogical alignment.**
 
 ## 2. AI Agent System (`agents/`)
@@ -46,18 +46,16 @@
 
 ## 4. Relationship and Interaction
 
-*   **Planned Interaction**: The UI will communicate with a backend API, which will then interact with the Python agent system.
-*   **Data Flow Considerations**: The interaction will involve transmitting data related to course context (summarized info, objectives), task parameters (type of output, scope, Bloom's level), user interaction state, and the generated content. The backend API will need to translate UI requests into agent calls and agent responses into UI-friendly formats.
-*   **Current State**: The backend API layer is not present. The agent system currently operates via a CLI, and the UI appears to have placeholder pages for functionalities like "Generate" and "Correct" that would eventually interface with the agents.
+*   **Planned Interaction**: The UI communicates directly with the AI Agent System's API endpoints.
+*   **Data Flow Considerations**: The interaction involves transmitting data related to user input (chat messages), session context, and task parameters. The agent system is expected to return not only text responses but also structured data (e.g., for UI field updates, generated artifacts).
+*   **Current State**: The `src/pages/Generate.tsx` component successfully sends user messages to the `multi_tool_agent` via its `/run` API endpoint. However, the UI is currently only processing the text content of agent responses, and the logic for dynamically updating UI fields (like task parameters or displaying the generated exam) based on structured data from agent responses is commented out or not yet fully implemented. The agent system needs to be enhanced to consistently return structured data for UI consumption.
 
 ## 5. Future Work: Building the Bridge, Simplifying, and Clarifying
 
-*   **Minimum Demonstrable Product (MDP) for Quiz Generation Completed**: As a first step, a basic backend API has been developed and integrated with the UI to demonstrate the `generate_quiz` agent tool. This serves as a foundation for further integration.
-The next phase of development will focus on integrating the agent workflow directly into the chat interface and enabling dynamic UI updates based on agent interactions.
+*   **Minimum Demonstrable Product (MDP) for Quiz Generation Completed**: A basic integration exists where the UI sends messages to the `multi_tool_agent` via its ADK API `/run` endpoint. The next phase of development will focus on fully integrating the agent workflow into the chat interface and enabling dynamic UI updates based on structured agent responses.
 
-*   **Develop the Backend API**: This is the critical step to enable communication between the UI and agents. It needs to expose agent functionalities via well-defined endpoints.
-*   **Integrate UI with Backend**: Modify the React components and pages to make asynchronous calls to the new backend API for triggering agent workflows and fetching results.
-*   **Adapt Agents for API Interaction**: Refactor the Python agent code to be easily callable as functions or services by the backend API, moving away from a purely CLI-driven model.
+*   **Enhance Agent Responses for UI Updates**: Modify the Python agent system to return structured data (e.g., JSON objects for `taskParameters` and `generatedExam`) in addition to text responses, enabling dynamic updates in the UI.
+*   **Integrate UI with Structured Agent Responses**: Modify the React components to parse and utilize structured data received from agent responses to dynamically update UI elements and display generated content.
 *   **Simplify and Refactor Code**: Address complexity and redundancy in both the UI and agent code. This includes refining data models (`models.py`), streamlining agent workflows, and improving UI component structure.
 *   **Clarification and Documentation**: Enhance inline comments, docstrings, and external documentation (including this information document) to clarify complex parts of the codebase, especially the agent orchestration and data handling.
 *   **Standardization**: Establish clear patterns for data exchange between the UI, backend, and agents to ensure consistency and correctness.

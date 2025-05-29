@@ -116,9 +116,10 @@ const CourseDashboard = () => {
               <Settings className="h-4 w-4" />
               Personnaliser
             </Button>
-            <Button 
+
+            <Button
               className="bg-ergi-primary hover:bg-ergi-dark"
-              onClick={() => navigate('/generate')}
+              onClick={() => navigate(`/generate/${courseId}`)}
             >
               <FileText className="h-4 w-4 mr-2" />
               Générer une évaluation
@@ -217,9 +218,10 @@ const CourseDashboard = () => {
                       Historique des évaluations pour ce cours
                     </CardDescription>
                   </div>
-                  <Button 
+
+                  <Button
                     className="bg-ergi-primary hover:bg-ergi-dark"
-                    onClick={() => navigate('/generate')}
+                    onClick={() => navigate(`/generate/${courseId}`)}
                   >
                     <FileText className="h-4 w-4 mr-2" />
                     Nouvelle évaluation
@@ -231,10 +233,11 @@ const CourseDashboard = () => {
                 <div className="text-center py-8">
                   <p className="text-gray-500">
                     Aucune évaluation créée pour ce cours.
-                    <Button 
-                      variant="link" 
+
+                    <Button
+                      variant="link"
                       className="text-ergi-primary"
-                      onClick={() => navigate('/generate')}
+                      onClick={() => navigate(`/generate/${courseId}`)}
                     >
                       Créer votre première évaluation
                     </Button>

@@ -1,1 +1,0 @@
-# This file makes 'simple_adk_agent' a Python package.

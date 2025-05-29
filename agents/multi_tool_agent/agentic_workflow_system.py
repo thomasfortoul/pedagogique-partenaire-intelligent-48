@@ -7,6 +7,7 @@ import json
 from typing import List, Dict, Any, Optional, Tuple, Union
 from enum import Enum
 from dataclasses import dataclass, field
+from .logger import log_agent_call, log_agent_response, log_error, log_tool_call, log_tool_response
 
 from google.adk.agents import Agent, LlmAgent, SequentialAgent, LoopAgent
 from google.adk.sessions import InMemorySessionService, BaseSessionService
@@ -353,7 +354,7 @@ def handle_chat_message(session_id: str, message: str) -> Dict[str, Any]:
     Handles an incoming chat message, orchestrates agents based on session state,
     and updates session state and returns agent response with UI updates.
     """
-    print(f"Entering handle_chat_message for session {session_id} with message: {message}")
+    log_agent_call("handle_chat_message", {"session_id": session_id, "message": message}, session_id)
 
     session_state = session_service.get_session_state(session_id)
     current_state_value = session_state.get("current_state", SessionState.OBJECTIVES_CAPTURED.value)
@@ -374,8 +375,9 @@ def handle_chat_message(session_id: str, message: str) -> Dict[str, Any]:
                 # In a real scenario, the agent would take the raw message and context
                 # For simplification, we'll pass the message as a "document"
                 agent_input = {"document": message, "course_context": {}}
+                log_agent_call(learning_objective_agent.name, agent_input, session_id)
                 agent_result = learning_objective_agent.run(agent_input) # Assuming .run() method exists and returns dict
-                print(f"learning_objective_agent result: {agent_result}")
+                log_agent_response(learning_objective_agent.name, agent_result, session_id)
 
                 if agent_result and agent_result.get("status") == "success" and agent_result.get("objectives"):
                     objectives = agent_result["objectives"]
@@ -438,7 +440,11 @@ def handle_chat_message(session_id: str, message: str) -> Dict[str, Any]:
                 question_counts_for_agent = {"mcq": 3, "short_answer": 1} # Example counts
                 difficulty_for_agent = "medium" # Example difficulty
 
-                print(f"Calling tools.generate_quiz with objectives: {objectives_for_agent}, counts: {question_counts_for_agent}, difficulty: {difficulty_for_agent}")
+                log_tool_call("generate_quiz", {
+                    "objectives": objectives_for_agent,
+                    "question_counts": question_counts_for_agent,
+                    "difficulty": difficulty_for_agent
+                }, session_id)
                 # Call the actual quiz generation tool
                 if tools and hasattr(tools, 'generate_quiz'):
                     quiz_result = tools.generate_quiz(
@@ -446,7 +452,7 @@ def handle_chat_message(session_id: str, message: str) -> Dict[str, Any]:
                         question_counts=question_counts_for_agent,
                         difficulty=difficulty_for_agent
                     )
-                    print(f"tools.generate_quiz returned: {quiz_result}")
+                    log_tool_response("generate_quiz", quiz_result, session_id)
 
                     if quiz_result.get("status") == "success":
                         generated_exam_data = quiz_result.get("quiz")
@@ -497,7 +503,7 @@ def handle_chat_message(session_id: str, message: str) -> Dict[str, Any]:
 
 
     except Exception as e:
-        print(f"An unexpected error occurred in handle_chat_message for session {session_id}: {e}")
+        log_error("handle_chat_message", e, session_id)
         import traceback
         traceback.print_exc() # Print traceback for detailed error info
         agent_response_text = "An internal error occurred while processing your message."

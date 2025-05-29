@@ -108,7 +108,7 @@ const App = () => {
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/generate" element={
+              <Route path="/generate/:courseId?" element={
                 <ProtectedRoute>
                   <Generate />
                 </ProtectedRoute>

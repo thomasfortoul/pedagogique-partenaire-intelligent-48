@@ -10,6 +10,7 @@ import sys
 import json
 import argparse
 from typing import Dict, Any, List
+from .logger import logger, log_error
 
 from google.adk.agents import Agent
 from google.adk.runners import Runner
@@ -52,27 +53,27 @@ def setup_argparse() -> argparse.ArgumentParser:
 
 def process_document_command(args: argparse.Namespace) -> None:
     """Handle the document processing command."""
-    print(f"Processing document: {args.document_path}")
+    logger.info(f"Processing document: {args.document_path}")
     
     result = dp.process_document(args.document_path)
     
     if result["status"] == "success":
-        print(f"Document processed successfully")
-        print(f"Summary: {result['summary']}")
-        print(f"Objectives ({len(result['objectives'])}):")
+        logger.info(f"Document processed successfully")
+        logger.info(f"Summary: {result['summary']}")
+        logger.info(f"Objectives ({len(result['objectives'])}):")
         for i, obj in enumerate(result['objectives']):
-            print(f"  {i+1}. {obj}")
+            logger.info(f"  {i+1}. {obj}")
         
-        print(f"Topics ({len(result['topics'])}):")
+        logger.info(f"Topics ({len(result['topics'])}):")
         for i, topic in enumerate(result['topics']):
-            print(f"  {i+1}. {topic}")
+            logger.info(f"  {i+1}. {topic}")
         
-        print(f"Bloom's Levels: {', '.join(result['blooms_levels'])}")
+        logger.info(f"Bloom's Levels: {', '.join(result['blooms_levels'])}")
         
         # Create a course
         course = dp.create_course_from_document(args.document_path, args.course_name)
         if course:
-            print(f"Created course: {course.name} (ID: {course.course_id})")
+            logger.info(f"Created course: {course.name} (ID: {course.course_id})")
             
             # Save course to a JSON file for later use
             course_file = f"course_{course.course_id}.json"
@@ -87,13 +88,13 @@ def process_document_command(args: argparse.Namespace) -> None:
                 }
                 json.dump(course_dict, f, indent=2)
                 
-            print(f"Course saved to {course_file}")
+            logger.info(f"Course saved to {course_file}")
     else:
-        print(f"Error processing document: {result.get('error_message', 'Unknown error')}")
+        log_error("process_document_command", Exception(result.get('error_message', 'Unknown error')))
 
 def plan_course_command(args: argparse.Namespace) -> None:
     """Handle the course planning command."""
-    print("Planning course...")
+    logger.info("Planning course...")
     
     # Get objectives from args or use defaults
     if args.objectives:
@@ -107,7 +108,7 @@ def plan_course_command(args: argparse.Namespace) -> None:
             "Evaluate learning outcomes and iterate on course design"
         ]
     
-    print(f"Planning course with {len(objectives)} objectives for {args.duration} weeks")
+    logger.info(f"Planning course with {len(objectives)} objectives for {args.duration} weeks")
     
     # Use the syllabus planner tool
     schedule_constraints = {
@@ -120,26 +121,26 @@ def plan_course_command(args: argparse.Namespace) -> None:
     
     if result["status"] == "success":
         syllabus = result["syllabus"]
-        print(f"Generated syllabus: {syllabus['title']}")
-        print(f"Modules: {len(syllabus['modules'])}")
+        logger.info(f"Generated syllabus: {syllabus['title']}")
+        logger.info(f"Modules: {len(syllabus['modules'])}")
         
         for module in syllabus['modules']:
-            print(f"  Module {module['id']}: {module['title']}")
-            print(f"    Primary objective: {module['primary_objective']}")
-            print(f"    Sessions: {len(module['sessions'])}")
+            logger.info(f"  Module {module['id']}: {module['title']}")
+            logger.info(f"    Primary objective: {module['primary_objective']}")
+            logger.info(f"    Sessions: {len(module['sessions'])}")
         
         # Save syllabus to a JSON file
         syllabus_file = "syllabus.json"
         with open(syllabus_file, 'w') as f:
             json.dump(syllabus, f, indent=2)
             
-        print(f"Syllabus saved to {syllabus_file}")
+        logger.info(f"Syllabus saved to {syllabus_file}")
     else:
-        print(f"Error generating syllabus: {result.get('error_message', 'Unknown error')}")
+        log_error("plan_course_command", Exception(result.get('error_message', 'Unknown error')))
 
 def generate_assessment_command(args: argparse.Namespace) -> None:
     """Handle the assessment generation command."""
-    print(f"Generating {args.type} assessment...")
+    logger.info(f"Generating {args.type} assessment...")
     
     # Try to load course from a file if course_id is provided
     course = None
@@ -155,11 +156,11 @@ def generate_assessment_command(args: argparse.Namespace) -> None:
                     objectives=course_dict["objectives"],
                     blooms_levels=course_dict["blooms_levels"]
                 )
-                print(f"Loaded course: {course.name}")
+                logger.info(f"Loaded course: {course.name}")
     
     # Use default objectives if no course was loaded
     if not course:
-        print("No course specified or found, using default objectives")
+        logger.info("No course specified or found, using default objectives")
         objectives = [
             {
                 "text": "Understand key pedagogical concepts and theories",
@@ -210,7 +211,7 @@ def generate_assessment_command(args: argparse.Namespace) -> None:
         question_counts = {"mcq": 10, "true_false": 5, "short_answer": 3, "essay": 2}
         difficulty = "hard"
     else:  # project
-        print("Project generation not yet implemented")
+        logger.warning("Project generation not yet implemented")
         return
     
     # Generate the quiz/exam
@@ -218,50 +219,50 @@ def generate_assessment_command(args: argparse.Namespace) -> None:
     
     if result["status"] == "success":
         quiz = result["quiz"]
-        print(f"Generated {quiz['title']}")
-        print(f"Questions: {quiz['metadata']['question_count']}")
+        logger.info(f"Generated {quiz['title']}")
+        logger.info(f"Questions: {quiz['metadata']['question_count']}")
         
         # Display a few sample questions
-        print("\nSample questions:")
+        logger.info("\nSample questions:")
         for i, question in enumerate(quiz['questions'][:3]):
-            print(f"  Q{i+1}: {question['text']}")
+            logger.info(f"  Q{i+1}: {question['text']}")
             if question['type'] == 'mcq':
                 for option in question['options']:
-                    print(f"    {option['id']}: {option['text']}")
-                print(f"    Answer: {quiz['answer_key'][question['id']]}")
+                    logger.info(f"    {option['id']}: {option['text']}")
+                logger.info(f"    Answer: {quiz['answer_key'][question['id']]}")
         
         # Save to a file
         assessment_file = f"{args.type}_{quiz['metadata']['generated_at'].replace(':', '-')}.json"
         with open(assessment_file, 'w') as f:
             json.dump(quiz, f, indent=2)
             
-        print(f"\nAssessment saved to {assessment_file}")
+        logger.info(f"\nAssessment saved to {assessment_file}")
     else:
-        print(f"Error generating assessment: {result.get('error_message', 'Unknown error')}")
+        log_error("generate_assessment_command", Exception(result.get('error_message', 'Unknown error')))
 
 def run_tests(args: argparse.Namespace) -> None:
     """Run tests for the system."""
-    print("Running tests...")
+    logger.info("Running tests...")
     
     if args.test_type in ['document', 'all']:
         # Test document pipeline
-        print("\nTesting document pipeline:")
+        logger.info("\nTesting document pipeline:")
         sample_path = os.path.join("tests", "sample_syllabus.txt")
         dp.create_sample_document(sample_path)
         
         result = dp.test_document_pipeline(sample_path, "Test Course")
         
         if result["status"] == "success":
-            print("✅ Document pipeline test passed")
-            print(f"  Created course: {result['course']['name']}")
-            print(f"  Objectives: {result['course']['objectives_count']}")
-            print(f"  Bloom's levels: {', '.join(result['course']['blooms_levels'])}")
+            logger.info("✅ Document pipeline test passed")
+            logger.info(f"  Created course: {result['course']['name']}")
+            logger.info(f"  Objectives: {result['course']['objectives_count']}")
+            logger.info(f"  Bloom's levels: {', '.join(result['course']['blooms_levels'])}")
         else:
-            print(f"❌ Document pipeline test failed: {result.get('error_message', 'Unknown error')}")
+            log_error("document_pipeline_test", Exception(result.get('error_message', 'Unknown error')))
     
     if args.test_type == 'all':
         # Test course planning
-        print("\nTesting course planning:")
+        logger.info("\nTesting course planning:")
         objectives = [
             "Understand key concepts",
             "Apply methods",
@@ -277,13 +278,13 @@ def run_tests(args: argparse.Namespace) -> None:
         result = tools.generate_syllabus(objectives, 3, schedule_constraints)
         
         if result["status"] == "success":
-            print("✅ Course planning test passed")
-            print(f"  Generated syllabus with {len(result['syllabus']['modules'])} modules")
+            logger.info("✅ Course planning test passed")
+            logger.info(f"  Generated syllabus with {len(result['syllabus']['modules'])} modules")
         else:
-            print(f"❌ Course planning test failed: {result.get('error_message', 'Unknown error')}")
+            log_error("course_planning_test", Exception(result.get('error_message', 'Unknown error')))
         
         # Test assessment generation
-        print("\nTesting assessment generation:")
+        logger.info("\nTesting assessment generation:")
         objectives = [
             {"text": "Understand key concepts", "bloom_level": "Understanding"},
             {"text": "Apply methods", "bloom_level": "Application"},
@@ -295,30 +296,30 @@ def run_tests(args: argparse.Namespace) -> None:
         result = tools.generate_quiz(objectives, question_counts, "easy")
         
         if result["status"] == "success":
-            print("✅ Assessment generation test passed")
-            print(f"  Generated quiz with {result['quiz']['metadata']['question_count']} questions")
+            logger.info("✅ Assessment generation test passed")
+            logger.info(f"  Generated quiz with {result['quiz']['metadata']['question_count']} questions")
         else:
-            print(f"❌ Assessment generation test failed: {result.get('error_message', 'Unknown error')}")
+            log_error("assessment_generation_test", Exception(result.get('error_message', 'Unknown error')))
 
 def start_interactive_mode() -> None:
     """Start interactive mode for the system."""
-    print("Starting interactive mode...")
-    print("This would launch a chat interface where users can interact with the agents.")
-    print("For now, this is a placeholder - interactive mode not fully implemented yet.")
+    logger.info("Starting interactive mode...")
+    logger.info("This would launch a chat interface where users can interact with the agents.")
+    logger.info("For now, this is a placeholder - interactive mode not fully implemented yet.")
     
     # Initialize a session
     user_id = "interactive_user"
     session_id = aws.initialize_session(user_id)
-    print(f"Created session {session_id}")
+    logger.info(f"Created session {session_id}")
     
     # This would normally launch a real interactive interface
     # For now, just show a simple menu
     while True:
-        print("\nWhat would you like to do?")
-        print("1. Process a document")
-        print("2. Plan a course")
-        print("3. Generate an assessment")
-        print("4. Exit")
+        logger.info("\nWhat would you like to do?")
+        logger.info("1. Process a document")
+        logger.info("2. Plan a course")
+        logger.info("3. Generate an assessment")
+        logger.info("4. Exit")
         
         choice = input("Enter your choice (1-4): ")
         
@@ -348,10 +349,10 @@ def start_interactive_mode() -> None:
                 type=assessment_type
             ))
         elif choice == "4":
-            print("Exiting interactive mode")
+            logger.info("Exiting interactive mode")
             break
         else:
-            print("Invalid choice, please try again")
+            logger.info("Invalid choice, please try again")
 
 def main() -> None:
     """Main entry point for the application."""

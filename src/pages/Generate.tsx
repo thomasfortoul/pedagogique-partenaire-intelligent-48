@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useParams } from 'react-router-dom'; // Import useParams
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,6 +20,7 @@ import {
   ClipboardEdit,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Course } from '@/types/course'; // Import Course type
 
 // Interface for Agent Data
 interface AgentData {
@@ -131,11 +133,10 @@ const AGENT_NAME = "multi_tool_agent"; // As per chat_setup/chat_client.py
 // --- End Configuration ---
 
 const Generate = () => {
+  const { courseId } = useParams<{ courseId?: string }>(); // Get courseId from URL
   const [step, setStep] = useState(0); // Still used for agent display logic
   const [currentAgent, setCurrentAgent] = useState<AgentData>(AGENTS_DATA[0]);
-  const [messages, setMessages] = useState([
-    { id: 'initial-message', role: 'system', content: "Bienvenue dans le Générateur d'examens pour Biologie introductive!\nQue souhaitez-vous créer aujourd'hui?", timestamp: new Date() }
-  ]);
+  const [messages, setMessages] = useState<any[]>([]); // Initialize as empty, will set initial message in useEffect
   const [input, setInput] = useState('');
   const [userId] = useState(() => `user_${uuidv4()}`); // Generate once on component mount
   const [sessionId, setSessionId] = useState(() => `session_${uuidv4()}`); // Initialize with a unique ID
@@ -147,6 +148,36 @@ const Generate = () => {
   const [thinkingStep, setThinkingStep] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const [courses, setCourses] = useState<Course[]>([]); // State to store courses
+
+  // Load courses from localStorage on initial render
+  useEffect(() => {
+    const storedCoursesString = localStorage.getItem('courses');
+    if (storedCoursesString) {
+      try {
+        const storedCourses = JSON.parse(storedCoursesString);
+        setCourses(storedCourses);
+      } catch (error) {
+        console.error("Error parsing stored courses:", error);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    let initialMessageContent = "Bienvenue dans le Générateur d'examens!\nQue souhaitez-vous créer aujourd'hui?";
+    if (courseId) {
+      const foundCourse = courses.find(c => c.id === courseId); // Use loaded courses
+      if (foundCourse) {
+        setTaskParameters(prev => ({ ...prev, course: foundCourse.title })); // Use foundCourse.title
+        initialMessageContent = `Bienvenue dans le Générateur d'examens pour le cours de "${foundCourse.title}"!\nDescription du cours: ${foundCourse.description}\nQue souhaitez-vous créer aujourd'hui?`;
+      } else {
+        initialMessageContent = `Bienvenue dans le Générateur d'examens!\nLe cours avec l'ID "${courseId}" n'a pas été trouvé.\nQue souhaitez-vous créer aujourd'hui?`;
+      }
+    }
+    setMessages([
+      { id: 'initial-message', role: 'system', content: initialMessageContent, timestamp: new Date() }
+    ]);
+  }, [courseId, courses]); // Re-run when courseId or courses change
 
 
 
