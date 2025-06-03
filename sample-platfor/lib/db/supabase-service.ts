@@ -34,6 +34,15 @@ export async function getCoursesByUserId(userId: string) {
     .eq('user_id', userId);
 }
 
+export async function getCourseById(courseId: string) {
+  console.log(`SupabaseService: Getting course with ID ${courseId}`);
+  return supabase
+    .from('courses')
+    .select('*')
+    .eq('id', courseId)
+    .single(); // Use single() to get a single record
+}
+
 export async function updateCourse(courseId: string, userId: string, courseData: { title?: string; description?: string; level?: string; }) {
   console.log(`SupabaseService: Updating course ${courseId} for user ${userId}`);
   return supabase

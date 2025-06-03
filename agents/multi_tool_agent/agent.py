@@ -325,6 +325,40 @@ def get_current_time(city: str) -> dict:
 def hello_world():
     return {"status": "success", "message": "Hello, ADK!"}
 
+def get_session_context(session_id: str) -> dict:
+    """
+    Get comprehensive session context including consolidated context with course details and memory.
+    
+    Args:
+        session_id (str): The session ID to retrieve context for
+        
+    Returns:
+        dict: Session context including consolidated context string with course details
+    """
+    try:
+        log_tool_call("get_session_context", {"session_id": session_id})
+        
+        # Import here to avoid circular imports
+        from .agentic_workflow_system import get_user_context_from_session
+        
+        context = get_user_context_from_session(session_id)
+        consolidated_context = context.get("consolidated_context", "No context available")
+        
+        log_tool_response("get_session_context", {"status": "success", "has_context": bool(consolidated_context)})
+        
+        return {
+            "status": "success",
+            "consolidated_context": consolidated_context,
+            "summary": "Use the consolidated_context which contains current course details, previous conversation context, and detailed course information from the database."
+        }
+    except Exception as e:
+        log_error("get_session_context", e)
+        return {
+            "status": "error", 
+            "error": str(e),
+            "consolidated_context": "Error retrieving context"
+        }
+
 # -------------------------------------------------------------------------
 # Agent definitions
 # -------------------------------------------------------------------------
@@ -342,11 +376,20 @@ learning_objective_agent = LoggingLlmAgent(
     model="gemini-2.0-flash-exp",
     description="Creates Bloom's-aligned learning objectives based on course topics and goals.",
     instruction="""
-    You are a learning objectives specialist. Your task is to:
-    1. Analyze course topics and goals to create appropriate learning objectives
-    2. Ensure objectives align with Bloom's taxonomy levels
-    3. Write clear, measurable objectives that guide assessment design
-    4. Balance different cognitive levels across the curriculum
+    You are a learning objectives specialist with access to comprehensive course context.
+    
+    IMPORTANT: Use the provided consolidated context that includes:
+    - Current course details (name, level, description, session information)
+    - Detailed course information from the database
+    - Previous conversation context for continuity
+    
+    Your task is to:
+    1. Analyze course topics and goals using the provided course context
+    2. Create objectives aligned with the specific course level and description
+    3. Ensure objectives align with Bloom's taxonomy levels appropriate for the course
+    4. Write clear, measurable objectives that guide assessment design
+    5. Balance different cognitive levels across the curriculum
+    6. Reference specific course details when crafting objectives
     """,
     tools=[generate_learning_objectives]
 )
@@ -364,11 +407,19 @@ course_planning_agent = LoggingAgent(
     model="gemini-2.0-flash-exp",
     description="Designs course structures with modules, topics, and activities based on learning objectives.",
     instruction="""
-    You are a course planning specialist. Your task is to:
-    1. Organize learning objectives into logical modules and topics
-    2. Create a coherent sequence that builds knowledge progressively
-    3. Recommend appropriate teaching activities for each module
-    4. Ensure the course structure aligns with pedagogical best practices
+    You are a course planning specialist with access to comprehensive course context.
+    
+    IMPORTANT: Utilize the provided consolidated context that includes:
+    - Current course details (name, level, description, session information)
+    - Detailed course information and structure from the database
+    - Previous interactions for continuity
+    
+    Your task is to:
+    1. Organize learning objectives into logical modules using current course context
+    2. Create a coherent sequence that builds knowledge progressively for the specific course level
+    3. Recommend appropriate teaching activities aligned with course description and level
+    4. Ensure the course structure aligns with pedagogical best practices and course requirements
+    5. Reference existing course structure and details when making recommendations
     """,
     tools=[generate_course_structure, recommend_resources]
 )
@@ -379,11 +430,19 @@ assessment_agent = LoggingAgent(
     model="gemini-2.0-flash-exp",
     description="Creates various assessment types (quizzes, exams, assignments) aligned with learning objectives.",
     instruction="""
-    You are an assessment design specialist. Your task is to:
-    1. Design assessments that align with specified learning objectives
-    2. Create questions targeting appropriate Bloom's taxonomy levels
-    3. Balance different question types for comprehensive evaluation
-    4. Ensure assessments measure authentic learning outcomes
+    You are an assessment design specialist with access to comprehensive course context.
+    
+    IMPORTANT: Use the provided consolidated context that includes:
+    - Current course details (name, level, description, objectives)
+    - Detailed course information and existing assessments from the database
+    - Previous conversation context for continuity
+    
+    Your task is to:
+    1. Design assessments that align with the specific course objectives and level
+    2. Create questions targeting Bloom's taxonomy levels appropriate for the course
+    3. Balance different question types for comprehensive evaluation suitable for the course level
+    4. Ensure assessments measure authentic learning outcomes specific to the course
+    5. Consider existing course structure and assessment patterns when designing new assessments
     """,
     tools=[generate_assessment]
 )
@@ -448,8 +507,23 @@ root_agent = LoggingAgent(
     model="gemini-2.0-flash-exp",
     description="Educational design assistant that helps with course planning, objectives, and assessment creation.",
     instruction="""
-    You are an educational design assistant. Welcome users and explain that you can help with:
+    You are an educational design assistant with access to comprehensive course and user context.
     
+    IMPORTANT: You have access to consolidated context that includes:
+    - Most recent user query and agent's last response (for continuity)
+    - Current course details (ID, name, level, description, session, instructor)
+    - Detailed course information from the database (JSON format)
+    
+    ALWAYS start by calling get_session_context with the session_id to retrieve the consolidated context.
+    This context contains all the course details and conversation history you need.
+    
+    Use this context to:
+    1. Maintain conversation continuity by referencing previous interactions
+    2. Personalize responses based on current course context
+    3. Align all recommendations with the specific course level and objectives
+    4. Reference detailed course information when making suggestions
+    
+    You can help with:
     1. Course planning and structure
     2. Creating learning objectives aligned with Bloom's taxonomy
     3. Designing assessments (quizzes, exams, assignments)
@@ -459,9 +533,9 @@ root_agent = LoggingAgent(
     For general questions requiring web searches, defer to the search_agent.
     For course planning, objectives, assessments and resources, use the educational_tools_agent.
     
-    Always show users their options and guide them through the educational design process.
-    Explain the pedagogical principles behind your recommendations.
+    Always consider the course context when providing recommendations and maintain pedagogical alignment.
     """,
+    tools=[get_session_context],
     sub_agents=[
         search_agent,
         educational_tools_agent

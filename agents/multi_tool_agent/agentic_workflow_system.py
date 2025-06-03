@@ -307,14 +307,20 @@ def create_root_agent_with_context() -> Agent:
     """
     
     def get_session_context_tool(session_id: str) -> Dict[str, Any]:
-        """Tool for root agent to access session context."""
+        """Tool for root agent to access session context with consolidated context string."""
         try:
             context = get_user_context_from_session(session_id)
             log_tool_call("get_session_context_tool", {"session_id": session_id}, session_id)
             log_tool_response("get_session_context_tool", {"status": "success", "context_keys": list(context.keys())}, session_id)
+            
+            # Extract consolidated context for easy agent access
+            consolidated_context = context.get("consolidated_context", "")
+            
             return {
                 "status": "success",
-                "context": context
+                "context": context,
+                "consolidated_context": consolidated_context,
+                "summary": "Use the consolidated_context field which contains formatted course details, memory, and context information."
             }
         except Exception as e:
             log_error("get_session_context_tool", e, session_id)
@@ -349,34 +355,36 @@ def create_root_agent_with_context() -> Agent:
         model="gemini-2.0-flash-exp",
         description="Enhanced orchestrator with full access to user context and session state.",
         instruction="""
-        You are the main orchestrator for course planning and assessment development with full access to user context.
+        You are the main orchestrator for course planning and assessment development with comprehensive course and user context.
         
-        IMPORTANT: Always start by retrieving the current session context to understand:
+        IMPORTANT: You have access to consolidated context that includes:
+        - Most recent user query and agent's last response (for conversation continuity)
+        - Current course details from the database (ID, name, level, description, session, instructor)
+        - Detailed course information in JSON format (course structure, objectives, materials, etc.)
         - User profile information (name, preferences, course history)
-        - Current course details (title, description, level)
         - Current workflow step and chat history
-        - App-level settings and capabilities
         
-        Use this context to:
-        1. Personalize responses based on user preferences and course history
-        2. Align content with the current course level and description
-        3. Reference previous work and maintain continuity
-        4. Make informed decisions about workflow progression
+        Use this consolidated context to:
+        1. Maintain conversation continuity by referencing previous interactions
+        2. Personalize responses based on user preferences and current course context
+        3. Align all content with the specific course level, description, and detailed information
+        4. Reference existing course structure and materials when making recommendations
+        5. Make informed decisions about workflow progression based on course requirements
         
         Available tools:
-        - get_session_context_tool: Get current session context including user profile and course
+        - get_session_context_tool: Get current session context including consolidated context string
         - get_user_history_tool: Search user's historical data and interactions
         
         Always maintain pedagogical alignment between objectives, content, and assessment.
-        Consider the user's experience level and course context in all recommendations.
+        Leverage the detailed course information to provide contextually relevant recommendations.
         """,
         tools=[get_session_context_tool, get_user_history_tool]
     )
     
     return enhanced_root_agent
 
-# Create the enhanced root agent
-root_agent = create_root_agent_with_context()
+# Import the root agent from agent.py which has the session context tool
+from .agent import root_agent
 
 # ------------------------------------------------------------------------
 # Enhanced Session and Memory Services with ADK Best Practices
@@ -513,23 +521,34 @@ def get_user_context_from_session(session_id: str) -> Dict[str, Any]:
     }
     user_profile = UserProfile(**user_profile_data) if user_profile_data["userId"] else None
 
-    # Get course details including the new course_details_json field
-    course_details_json_str = state.get("current_course_details_json")
-    course_details_json = None
-    if course_details_json_str:
-        try:
-            course_details_json = json.loads(course_details_json_str) if isinstance(course_details_json_str, str) else course_details_json_str
-        except json.JSONDecodeError:
-            course_details_json = None
-
+    # Get course details from session state
     current_course_data = {
         "id": state.get("current_course_id"),
         "title": state.get("current_course_title"),
         "description": state.get("current_course_description"),
         "level": state.get("current_course_level"),
-        "course_details_json": course_details_json
     }
     current_course = Course(**current_course_data) if current_course_data["id"] else None
+
+    # Fetch detailed course information from the database if a course ID is present
+    detailed_course_info = None
+    course_id = state.get("current_course_id")
+    if course_id:
+        try:
+            # Import the getCourseById function
+            from sample_platfor.lib.db.supabase_service import getCourseById
+            
+            db_result = getCourseById(course_id)
+            if db_result and db_result.data:
+                detailed_course_info = db_result.data
+                log_tool_response("getCourseById", {"status": "success", "course_id": course_id, "data_present": True}, session_id)
+            else:
+                 log_tool_response("getCourseById", {"status": "success", "course_id": course_id, "data_present": False, "message": "No data found"}, session_id)
+        except Exception as e:
+            log_error("getCourseById", e, session_id)
+            # Handle database fetch error - maybe log it and continue without detailed info
+            detailed_course_info = {"error": str(e), "message": "Failed to fetch detailed course info from database."}
+
 
     # Extract chat context for memory
     chat_context = state.get("chat_context", {})
@@ -538,10 +557,10 @@ def get_user_context_from_session(session_id: str) -> Dict[str, Any]:
 
     # Build consolidated context string
     consolidated_context = _build_consolidated_context_string(
-        most_recent_user_query, 
-        agent_last_response, 
-        current_course, 
-        course_details_json
+        most_recent_user_query,
+        agent_last_response,
+        current_course,
+        detailed_course_info # Pass the fetched detailed course info
     )
 
     context = {
@@ -778,13 +797,19 @@ def handle_chat_message_enhanced(
             "current_step": current_step.value
         }
 
+        # Prepare agent input with consolidated context
+        consolidated_context = user_context.get("consolidated_context", "")
+        
+        # Create enhanced message that includes consolidated context
+        enhanced_message = f"{consolidated_context}\n\nUser Message: {message}" if consolidated_context else message
+        
         # Use root agent to orchestrate the response
         log_agent_call(root_agent.name, agent_context, session_id)
         
         # Pass the enhanced context to the root agent
         # The root agent can now access session context via its tools
         agent_result = root_agent.run(
-            inputs={"message": message, "session_id": session_id},
+            inputs={"message": enhanced_message, "session_id": session_id},
             state=user_context  # Pass full context as state
         )
         

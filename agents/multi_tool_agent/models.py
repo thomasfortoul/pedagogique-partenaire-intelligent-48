@@ -9,12 +9,17 @@ class Course:
     level: Optional[str] = None
     documents: Optional[List[Dict]] = field(default_factory=list) # Assuming documents are a list of dicts for now
     course_details_json: Optional[Dict[str, Any]] = None # New field for JSON course details
+    course_details_json: Optional[Dict[str, Any]] = None # New field for JSON course details
+    session: Optional[str] = None
+    instructor: Optional[str] = None
+    summarized_pedagogical_info: Optional[str] = None
 
 @dataclass
 class UserProfile:
     userId: str
     name: Optional[str] = None
     email: Optional[str] = None
+    preferences: Optional[Dict[str, Any]] = field(default_factory=dict)
     courses: List[Course] = field(default_factory=list)
 
 @dataclass

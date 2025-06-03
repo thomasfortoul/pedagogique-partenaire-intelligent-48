@@ -63,6 +63,7 @@ class CourseData(BaseModel):
     title: str
     description: str
     level: str
+    course_details_json: Optional[Dict[str, Any]] = None
 
 class SessionInitRequest(BaseModel):
     user_id: str
@@ -258,7 +259,8 @@ async def handle_chat(request: ChatMessageRequest):
                 id=request.current_course.id,
                 title=request.current_course.title,
                 description=request.current_course.description,
-                level=request.current_course.level
+                level=request.current_course.level,
+                course_details_json=request.current_course.course_details_json
             )
         
         # Handle chat message with enhanced context

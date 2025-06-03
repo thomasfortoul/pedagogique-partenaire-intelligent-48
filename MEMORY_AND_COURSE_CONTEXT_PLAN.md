@@ -1,119 +1,68 @@
-# Plan: Enhance Agent Context with Memory and Course Details
+# Plan: Simple Course Context for Agent Prompts
 
-This document outlines the plan to refactor how memory-based information and course details are provided to agents, moving from a session state to a single, large direct prompt. This prompt will include parsed `course_details_json` (a JSON object) and other course attributes formatted as `Column_Name: Value`. The memory-based information will specifically include the most recent user query and the agent's last response.
+This document outlines a simplified approach to provide course context to agents by pulling course information from the database when a chat is opened and adding it directly to the agent prompt.
 
-## Phase 1: Information Gathering and Context Understanding (Completed)
+## Overview
 
-*   **Examined Agent System Files:** Reviewed the directory structure of `agents/multi_tool_agent`.
-*   **Reviewed Session State/Memory Implementation:** Investigated `agents/multi_tool_agent/agentic_workflow_system.py` to understand how session state and context are managed, and how the most recent user query and agent's last response are stored.
-*   **Reviewed Course Data Structure:** Examined `agents/multi_tool_agent/models.py` for Python data structures and `src/types/course.ts` for TypeScript course interface.
-*   **Reviewed Prompt Construction Logic:** Analyzed `agents/multi_tool_agent/agent.py` for agent definitions and how prompts are currently constructed.
+When a user opens a chat for a specific course, we will:
+1. Fetch the complete course information from the database
+2. Format this information into a clear context string
+3. Add this context to the agent's system prompt
 
-## Phase 2: Detailed Plan for Implementation
+## Implementation
 
-### 1. Update Course Data Models
+### 1. Database Query on Chat Open
 
-*   **Modify `agents/multi_tool_agent/models.py`:**
-    *   Add a new field `course_details_json: Optional[Dict[str, Any]] = None` to the `Course` dataclass. This field will store the JSON object containing detailed course information.
+When a chat session is initiated for a course:
+- Query the database for the complete course record using the course ID
+- Retrieve all relevant course fields: title, description, level, instructor, session details, documents, etc.
 
-    ```python
-    # agents/multi_tool_agent/models.py
-    @dataclass
-    class Course:
-        id: str
-        title: str
-        description: str
-        level: Optional[str] = None
-        documents: Optional[List[Dict]] = field(default_factory=list)
-        course_details_json: Optional[Dict[str, Any]] = None # New field
-    ```
+### 2. Format Course Context
 
-*   **Modify `src/types/course.ts` (if necessary):**
-    *   Add `courseDetailsJson?: Record<string, any>;` to the `Course` interface to maintain consistency across the frontend and backend models. This will be confirmed during the implementation phase.
+Create a simple, readable context string from the course data:
 
-    ```typescript
-    // src/types/course.ts
-    export interface Course {
-      id: string;
-      title: string;
-      description?: string;
-      level?: string;
-      documents?: Document[];
-      session?: string;
-      instructor?: string;
-      courseDetailsJson?: Record<string, any>; // New field
-    }
-    ```
+```
+=== COURSE CONTEXT ===
+Course: [title]
+Level: [level]
+Instructor: [instructor]
+Description: [description]
+Session: [session]
+Documents: [list of document titles]
+=== END COURSE CONTEXT ===
+```
 
-### 2. Modify `get_user_context_from_session` in `agents/multi_tool_agent/agentic_workflow_system.py`
+### 3. Inject into Agent Prompt
 
-This function will be enhanced to retrieve and format all necessary context for the direct prompt.
+Add the formatted course context to the beginning of the agent's system prompt:
 
-*   **Retrieve Most Recent User Query and Agent's Last Response:**
-    *   Identify the keys within `session.state["chat_context"]` that store the most recent user query and the agent's last response. Extract these values.
+```
+[COURSE_CONTEXT_STRING]
 
-*   **Fetch Course Details:**
-    *   The `current_course` object is already retrieved from the session. Ensure all its attributes, including the new `course_details_json`, are accessible.
+You are a pedagogical AI assistant for this course. Use the course context above to provide relevant, course-specific assistance to students.
 
-*   **Parse `course_details_json`:**
-    *   If `current_course.course_details_json` is a string representation of a JSON object, parse it into a Python dictionary. If it's already a dictionary, no parsing is needed. Handle potential parsing errors gracefully.
+[REST_OF_AGENT_INSTRUCTIONS]
+```
 
-*   **Format Other Course Attributes:**
-    *   Iterate through the `current_course` object's attributes (e.g., `id`, `title`, `description`, `level`, `documents`, `session`, `instructor`) and format them as `Column_Name: Value` strings. Exclude `course_details_json` from this formatting, as its content will be presented separately.
+### 4. Implementation Points
 
-*   **Construct a Consolidated Context String:**
-    *   Create a well-formatted string that combines all the extracted and processed information. The structure should be clear and easy for the agents to interpret.
-    This information is taken directly from the supabase database.
+- Modify the agent initialization to accept course context
+- Update the chat handler to fetch course data when starting a new chat
+- Ensure course context is available to all relevant agents (learning objectives, syllabus planner, assessment generator, etc.)
 
-    ```python
-    # Example structure for the consolidated context string
-    """
-    --- CONTEXT ---
-    Most Recent User Query: [user_query_text]
-    Agent's Last Response: [agent_response_text]
+## Benefits
 
-    --- CURRENT COURSE DETAILS ---  
-    Course_ID: [course.id]
-    Course_Name: [course.title]
-    Course_Level: [course.level]
-    Course_Description_Summary: [course.description]
-    Course_Session: [course.session]
-    Course_Instructor: [course.instructor]
+- Simple and straightforward implementation
+- No complex memory management required
+- Course context is always fresh and accurate
+- Easy to debug and maintain
+- Consistent course information across all agent interactions
 
-    --- DETAILED COURSE INFORMATION (JSON) ---
-    [parsed_course_details_json_content_formatted]
-    --- END CONTEXT ---
-    """
-    ```
+## Files to Modify
 
-### 3. Inject Consolidated Context into Agent Prompts
-
-*   **Identify Agent Instruction Points:**
-    *   Locate where the `instruction` parameter is defined for `LlmAgent` and `Agent` instances in `agents/multi_tool_agent/agent.py` and `agents/multi_tool_agent/agentic_workflow_system.py` (e.g., `learning_objective_agent`, `syllabus_planner_agent`, `assessment_generator_agent`, `pedagogical_orchestrator_enhanced`).
-
-*   **Modify Agent Instructions:**
-    *   Prepend or embed the consolidated context string (generated in step 2) into the `instruction` of relevant agents. This will provide the agents with the necessary memory and course details directly in their prompt. This might involve dynamically constructing the instruction string before passing it to the agent.
-
-### 4. Update Agent Calls
-
-*   **Review `handle_chat_message_enhanced` in `agents/multi_tool_agent/agentic_workflow_system.py`:**
-    *   Ensure that this function, or any other part of the workflow that invokes agents, correctly retrieves the necessary components (user query, agent response, current course) to build the consolidated context string before passing it to the agent's prompt.
-
-## Workflow Diagram
-
-```mermaid
-graph TD
-    A[Start] --> B{Update Course Data Models};
-    B --> B1[Modify agents/multi_tool_agent/models.py: Add course_details_json to Course dataclass];
-    B --> B2[Consider src/types/course.ts for consistency];
-
-    B2 --> C[Modify get_user_context_from_session in agentic_workflow_system.py];
-    C --> C1[Extract Most Recent User Query & Agent Response];
-    C --> C2[Access Current Course Object & new course_details_json];
-    C --> C3[Parse course_details_json];
-    C --> C4[Format Other Course Attributes: Column_Name: Value];
-    C --> C5[Construct Consolidated Context String];
-
-    C5 --> D[Inject Consolidated Context into Agent Prompts];
-    D --> E[Update Agent Calls];
-    E --> F[End];
+- `agents/multi_tool_agent/agentic_workflow_system.py` - Add course data fetching
+- `agents/multi_tool_agent/agent.py` - Modify agent initialization to include course context
+- Database query functions - Add course data retrieval
+- `sample-platfor/lib/db/supabase-service.ts` - Implement/modify functions for fetching course data
+- `database.sql` - Reference for database schema
+- `project.txt` scope of project
