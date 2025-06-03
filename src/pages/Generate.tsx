@@ -22,6 +22,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Course } from '@/types/course'; // Import Course type
 import { UserProfile } from '@/types/user'; // Import UserProfile type
+import { getCourseById } from '../../sample-platfor/lib/db/supabase-service'; // Import getCourseById
 
 // Interface for Agent Data
 interface AgentData {
@@ -104,16 +105,15 @@ const EXAM_ARTIFACT_PLACEHOLDER = {
 // Initial parameters for the task sidebar
 const initialTaskParameters = {
   course: '', // Start empty, will be filled by chat
-  outputType: '', // Start empty, will be filled by chat
-  learningObjectives: '',
-  bloomsLevel: '',
+  Document: 'Examen', // Start empty, will be filled by chat
+  Objectifs: ''
 };
 
 const sidebarHeaderMapping = {
   course: "Cours",
-  outputType: "Type de Document",
-  learningObjectives: "Objectifs d'Apprentissage",
-  bloomsLevel: "Niveau de Bloom"
+  // outputType: "Type de Document",
+  // learningObjectives: "Objectifs d'Apprentissage",
+  // bloomsLevel: "Niveau de Bloom"
 };
 
 // Chat thinking bubble texts - aligned with AGENTS_DATA flow
@@ -167,27 +167,57 @@ const Generate = () => {
   }, []);
 
   useEffect(() => {
-    let initialMessageContent = "Bienvenue dans le Générateur d'examens!\nQue souhaitez-vous créer aujourd'hui?";
+let initialMessageContent = "Bienvenue dans le Générateur d'examens!\nQue souhaitez-vous créer aujourd'hui?";
+    console.log("Course ID from URL:", courseId); // Log the courseId
+    console.log("Courses loaded from localStorage:", courses); // Log the courses array
     if (courseId) {
-      const foundCourse = courses.find(c => c.id === courseId); // Use loaded courses
-      if (foundCourse) {
-        setCurrentCourse(foundCourse); // Set the found course
-        setTaskParameters(prev => ({ ...prev, course: foundCourse.title })); // Use foundCourse.title
-        initialMessageContent = `Bienvenue dans le Générateur d'examens pour le cours de "${foundCourse.title}"!\nDescription du cours: ${foundCourse.description}\nQue souhaitez-vous créer aujourd'hui?`;
-      } else {
-        initialMessageContent = `Bienvenue dans le Générateur d'examens!\nLe cours avec l'ID "${courseId}" n'a pas été trouvé.\nQue souhaitez-vous créer aujourd'hui?`;
-      }
-    }
-    // Construct UserProfile
-    setUserProfile({
-      userId: userId,
-      courses: courses, // Pass all courses
-      // Add other profile data if available, e.g., name, email
-    });
+      const fetchCourse = async () => {
+        console.log("Attempting to fetch course with ID:", courseId); // Log before fetching
+        const { data: foundCourse, error } = await getCourseById(courseId);
 
-    setMessages([
-      { id: 'initial-message', role: 'system', content: initialMessageContent, timestamp: new Date() }
-    ]);
+        if (error) {
+          console.error("Error fetching course:", error); // Log fetch error
+          initialMessageContent = `Bienvenue dans le Générateur d'examens!\nErreur lors du chargement du cours avec l'ID "${courseId}".\nQue souhaitez-vous créer aujourd'hui?`;
+          setMessages([
+            { id: 'initial-message', role: 'system', content: initialMessageContent, timestamp: new Date() }
+          ]);
+          setCurrentCourse(null); // Ensure currentCourse is null on error
+        } else if (foundCourse) {
+          console.log("Course fetched successfully:", foundCourse); // Log successful fetch
+          setCurrentCourse(foundCourse); // Set the fetched course
+          setTaskParameters(prev => ({ ...prev, course: foundCourse.title })); // Use fetchedCourse.title
+          initialMessageContent = `Bienvenue dans le Générateur d'examens pour le cours de "${foundCourse.title}"!\nDescription du cours: ${foundCourse.description}\nQue souhaitez-vous créer aujourd'hui?`;
+           setMessages([
+            { id: 'initial-message', role: 'system', content: initialMessageContent, timestamp: new Date() }
+          ]);
+        } else {
+           console.warn("Course not found with ID:", courseId); // Log course not found
+           initialMessageContent = `Bienvenue dans le Générateur d'examens!\nLe cours avec l'ID "${courseId}" n'a pas été trouvé.\nQue souhaitez-vous créer aujourd'hui?`;
+           setMessages([
+            { id: 'initial-message', role: 'system', content: initialMessageContent, timestamp: new Date() }
+          ]);
+           setCurrentCourse(null); // Ensure currentCourse is null if not found
+        }
+         // Construct UserProfile after attempting to fetch the course
+        setUserProfile({
+          userId: userId,
+          courses: courses, // Pass all courses (consider if this should be updated after fetch)
+          // Add other profile data if available, e.g., name, email
+        });
+      };
+
+      fetchCourse();
+    } else {
+       // If no courseId in URL, just set the initial message and user profile
+       setMessages([
+        { id: 'initial-message', role: 'system', content: initialMessageContent, timestamp: new Date() }
+      ]);
+       setUserProfile({
+          userId: userId,
+          courses: courses, // Pass all courses
+          // Add other profile data if available, e.g., name, email
+        });
+    }
   }, [courseId, courses, userId]); // Re-run when courseId, courses, or userId change
 
 

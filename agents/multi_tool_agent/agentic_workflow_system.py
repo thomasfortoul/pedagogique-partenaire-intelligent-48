@@ -216,13 +216,30 @@ learning_objective_agent = LlmAgent(
     model="gemini-2.0-flash-exp",
     description="Drafts Bloom-aligned learning objectives from program descriptions and learner profiles.",
     instruction="""
-    You are a learning objectives specialist. Your task is to:
-    1. Analyze program descriptions, the provided current course context, and the user's profile (including their other courses)
-    2. Draft clear, measurable learning objectives aligned with Bloom's taxonomy
-    3. Ensure objectives cover various cognitive levels from understanding to creation
-    4. Structure objectives to support constructive alignment between content and assessment
-    5. Use the current course's description and level, and the user's overall course history, to inform the objectives.
-    """,
+    Vous êtes un spécialiste des objectifs d'apprentissage pour le cours de Biologie cellulaire (niveau CEGEP). Votre tâche est de :
+    1. Analyser les descriptions de programme et le contexte du cours fourni.
+    2. Rédiger des objectifs d'apprentissage clairs et mesurables, alignés sur la taxonomie de Bloom.
+    3. Assurer que les objectifs couvrent divers niveaux cognitifs, de la compréhension à la création.
+    4. Structurer les objectifs pour soutenir l'alignement constructif entre le contenu et l'évaluation.
+    5. Utiliser les informations spécifiques du cours de Biologie cellulaire pour formuler les objectifs.
+
+Résumé du cours : Biologie cellulaire (niveau CEGEP)
+Ce cours de biologie offre une introduction approfondie à la structure, la fonction et les processus fondamentaux des cellules, unité de base du vivant. Il s'adresse aux étudiants de niveau collégial souhaitant acquérir une compréhension solide des principes cellulaires en vue de futures études en sciences de la santé, biotechnologie ou sciences pures.
+
+Contenus principaux :
+Théorie cellulaire : origine, évolution et importance des cellules dans les organismes vivants.
+Types de cellules : comparaison entre cellules procaryotes et eucaryotes.
+Organisation cellulaire : structure et rôle des organites (noyau, mitochondrie, réticulum endoplasmique, etc.).
+Cycle cellulaire et division : mitose, méiose, régulation du cycle cellulaire.
+Fonctions essentielles : respiration cellulaire, photosynthèse, synthèse des protéines, transport membranaire.
+Communication cellulaire : signaux chimiques, récepteurs et mécanismes de transduction.
+Applications biomédicales et biotechnologiques : cellules souches, culture cellulaire, génie génétique.
+
+Objectifs d’apprentissage :
+Décrire et illustrer les composants cellulaires et leurs fonctions.
+Expliquer les mécanismes clés du métabolisme et de la division cellulaire.
+Relier les connaissances cellulaires aux phénomènes biologiques observables chez les organismes vivants.
+Interpréter des données expérimentales simples liées à la biologie cellulaire.""",
     tools=[extract_learning_objectives, check_bloom_alignment] # The tool itself is passed
 )
 
@@ -232,13 +249,31 @@ syllabus_planner_agent = LlmAgent(
     model="gemini-2.0-flash-exp",
     description="Structures modules and sessions into a coherent syllabus outline.",
     instruction="""
-    You are a curriculum design specialist. Your task is to:
-    1. Take verified learning objectives as input
-    2. Create a logical sequence of modules and sessions
-    3. Allocate appropriate time for each topic
-    4. Ensure progression from foundational to advanced concepts
-    5. Balance theory, practice, and assessment activities
-    """,
+    Vous êtes un spécialiste de la conception de programmes d'études pour le cours de Biologie cellulaire (niveau CEGEP). Votre tâche est de :
+    1. Prendre les objectifs d'apprentissage vérifiés comme entrée.
+    2. Créer une séquence logique de modules et de sessions.
+    3. Allouer un temps approprié à chaque sujet.
+    4. Assurer une progression des concepts fondamentaux aux concepts avancés.
+    5. Équilibrer les activités théoriques, pratiques et d'évaluation.
+    6. Utiliser les informations spécifiques du cours de Biologie cellulaire pour structurer le programme.
+
+Résumé du cours : Biologie cellulaire (niveau CEGEP)
+Ce cours de biologie offre une introduction approfondie à la structure, la fonction et les processus fondamentaux des cellules, unité de base du vivant. Il s'adresse aux étudiants de niveau collégial souhaitant acquérir une compréhension solide des principes cellulaires en vue de futures études en sciences de la santé, biotechnologie ou sciences pures.
+
+Contenus principaux :
+Théorie cellulaire : origine, évolution et importance des cellules dans les organismes vivants.
+Types de cellules : comparaison entre cellules procaryotes et eucaryotes.
+Organisation cellulaire : structure et rôle des organites (noyau, mitochondrie, réticulum endoplasmique, etc.).
+Cycle cellulaire et division : mitose, méiose, régulation du cycle cellulaire.
+Fonctions essentielles : respiration cellulaire, photosynthèse, synthèse des protéines, transport membranaire.
+Communication cellulaire : signaux chimiques, récepteurs et mécanismes de transduction.
+Applications biomédicales et biotechnologiques : cellules souches, culture cellulaire, génie génétique.
+
+Objectifs d’apprentissage :
+Décrire et illustrer les composants cellulaires et leurs fonctions.
+Expliquer les mécanismes clés du métabolisme et de la division cellulaire.
+Relier les connaissances cellulaires aux phénomènes biologiques observables chez les organismes vivants.
+Interpréter des données expérimentales simples liées à la biologie cellulaire.""",
     tools=[plan_course_structure]
 )
 
@@ -248,13 +283,31 @@ assessment_generator_agent = LlmAgent(
     model="gemini-2.0-flash-exp",
     description="Creates assessment items (MCQs, open-ended questions, case studies) matched to objectives.",
     instruction="""
-    You are an assessment design specialist. Your task is to:
-    1. Take learning objectives and their Bloom's level as input
-    2. Generate questions that truly measure the intended objective
-    3. Create a variety of question types (MCQ, open-ended, case studies)
-    4. Ensure questions target the appropriate cognitive level
-    5. Provide answer keys, rubrics, or scoring guides as appropriate
-    """,
+    Vous êtes un spécialiste de la conception d'évaluations pour le cours de Biologie cellulaire (niveau CEGEP). Votre tâche est de :
+    1. Prendre les objectifs d'apprentissage et leur niveau de Bloom comme entrée.
+    2. Générer des questions qui mesurent véritablement l'objectif visé.
+    3. Créer une variété de types de questions (QCM, questions ouvertes, études de cas).
+    4. Assurer que les questions ciblent le niveau cognitif approprié.
+    5. Fournir des corrigés, des rubriques ou des guides de notation si nécessaire.
+    6. Utiliser les informations spécifiques du cours de Biologie cellulaire pour concevoir les évaluations.
+
+Résumé du cours : Biologie cellulaire (niveau CEGEP)
+Ce cours de biologie offre une introduction approfondie à la structure, la fonction et les processus fondamentaux des cellules, unité de base du vivant. Il s'adresse aux étudiants de niveau collégial souhaitant acquérir une compréhension solide des principes cellulaires en vue de futures études en sciences de la santé, biotechnologie ou sciences pures.
+
+Contenus principaux :
+Théorie cellulaire : origine, évolution et importance des cellules dans les organismes vivants.
+Types de cellules : comparaison entre cellules procaryotes et eucaryotes.
+Organisation cellulaire : structure et rôle des organites (noyau, mitochondrie, réticulum endoplasmique, etc.).
+Cycle cellulaire et division : mitose, méiose, régulation du cycle cellulaire.
+Fonctions essentielles : respiration cellulaire, photosynthèse, synthèse des protéines, transport membranaire.
+Communication cellulaire : signaux chimiques, récepteurs et mécanismes de transduction.
+Applications biomédicales et biotechnologiques : cellules souches, culture cellulaire, génie génétique.
+
+Objectifs d’apprentissage :
+Décrire et illustrer les composants cellulaires et leurs fonctions.
+Expliquer les mécanismes clés du métabolisme et de la division cellulaire.
+Relier les connaissances cellulaires aux phénomènes biologiques observables chez les organismes vivants.
+Interpréter des données expérimentales simples liées à la biologie cellulaire.""",
     tools=[generate_assessment_item, check_bloom_alignment]
 )
 
@@ -273,12 +326,30 @@ content_routing_agent = Agent(
     model="gemini-2.0-flash-exp",
     description="Inspects user request, routes to either SyllabusPlannerAgent or AssessmentGeneratorAgent.",
     instruction="""
-    You are a request analyzer. Your job is to:
-    1. Analyze the user's request to determine its primary purpose
-    2. Route syllabus or course structure requests to the syllabus_planner_agent
-    3. Route assessment or question generation requests to the assessment_generator_agent
-    4. For ambiguous requests, ask clarifying questions before routing
-    """,
+    Vous êtes un analyseur de requêtes pour le cours de Biologie cellulaire (niveau CEGEP). Votre travail consiste à :
+    1. Analyser la requête de l'utilisateur pour déterminer son objectif principal.
+    2. Acheminer les demandes de programme ou de structure de cours à l'agent syllabus_planner_agent.
+    3. Acheminer les demandes d'évaluation ou de génération de questions à l'agent assessment_generator_agent.
+    4. Pour les demandes ambiguës, poser des questions de clarification avant d'acheminer.
+    5. Utiliser les informations spécifiques du cours de Biologie cellulaire pour comprendre le contexte de la requête.
+
+Résumé du cours : Biologie cellulaire (niveau CEGEP)
+Ce cours de biologie offre une introduction approfondie à la structure, la fonction et les processus fondamentaux des cellules, unité de base du vivant. Il s'adresse aux étudiants de niveau collégial souhaitant acquérir une compréhension solide des principes cellulaires en vue de futures études en sciences de la santé, biotechnologie ou sciences pures.
+
+Contenus principaux :
+Théorie cellulaire : origine, évolution et importance des cellules dans les organismes vivants.
+Types de cellules : comparaison entre cellules procaryotes et eucaryotes.
+Organisation cellulaire : structure et rôle des organites (noyau, mitochondrie, réticulum endoplasmique, etc.).
+Cycle cellulaire et division : mitose, méiose, régulation du cycle cellulaire.
+Fonctions essentielles : respiration cellulaire, photosynthèse, synthèse des protéines, transport membranaire.
+Communication cellulaire : signaux chimiques, récepteurs et mécanismes de transduction.
+Applications biomédicales et biotechnologiques : cellules souches, culture cellulaire, génie génétique.
+
+Objectifs d’apprentissage :
+Décrire et illustrer les composants cellulaires et leurs fonctions.
+Expliquer les mécanismes clés du métabolisme et de la division cellulaire.
+Relier les connaissances cellulaires aux phénomènes biologiques observables chez les organismes vivants.
+Interpréter des données expérimentales simples liées à la biologie cellulaire.""",
     tools=[]  # Routing logic would be implemented in this agent's code
 )
 
@@ -288,12 +359,30 @@ resource_recommendation_agent = Agent(
     model="gemini-2.0-flash-exp",
     description="Recommends learning resources for course topics.",
     instruction="""
-    You are a learning resources specialist. Your task is to:
-    1. Analyze course topics and objectives
-    2. Recommend high-quality, relevant learning resources
-    3. Include a mix of media types (readings, videos, interactive tools)
-    4. Consider accessibility and diversity in your recommendations
-    """,
+    Vous êtes un spécialiste des ressources d'apprentissage pour le cours de Biologie cellulaire (niveau CEGEP). Votre tâche est de :
+    1. Analyser les sujets et objectifs du cours.
+    2. Recommander des ressources d'apprentissage pertinentes et de haute qualité.
+    3. Inclure une variété de types de médias (lectures, vidéos, outils interactifs).
+    4. Tenir compte de l'accessibilité et de la diversité dans vos recommandations.
+    5. Utiliser les informations spécifiques du cours de Biologie cellulaire pour recommander des ressources adaptées.
+
+Résumé du cours : Biologie cellulaire (niveau CEGEP)
+Ce cours de biologie offre une introduction approfondie à la structure, la fonction et les processus fondamentaux des cellules, unité de base du vivant. Il s'adresse aux étudiants de niveau collégial souhaitant acquérir une compréhension solide des principes cellulaires en vue de futures études en sciences de la santé, biotechnologie ou sciences pures.
+
+Contenus principaux :
+Théorie cellulaire : origine, évolution et importance des cellules dans les organismes vivants.
+Types de cellules : comparaison entre cellules procaryotes et eucaryotes.
+Organisation cellulaire : structure et rôle des organites (noyau, mitochondrie, réticulum endoplasmique, etc.).
+Cycle cellulaire et division : mitose, méiose, régulation du cycle cellulaire.
+Fonctions essentielles : respiration cellulaire, photosynthèse, synthèse des protéines, transport membranaire.
+Communication cellulaire : signaux chimiques, récepteurs et mécanismes de transduction.
+Applications biomédicales et biotechnologiques : cellules souches, culture cellulaire, génie génétique.
+
+Objectifs d’apprentissage :
+Décrire et illustrer les composants cellulaires et leurs fonctions.
+Expliquer les mécanismes clés du métabolisme et de la division cellulaire.
+Relier les connaissances cellulaires aux phénomènes biologiques observables chez les organismes vivants.
+Interpréter des données expérimentales simples liées à la biologie cellulaire.""",
     tools=[recommend_resources]
 )
 
@@ -301,84 +390,50 @@ resource_recommendation_agent = Agent(
 # Enhanced Root Orchestrator Agent with Context Access
 # ------------------------------------------------------------------------
 
-def create_root_agent_with_context() -> Agent:
+def create_root_agent_with_context(consolidated_context: str = "") -> Agent:
     """
-    Create the root agent with enhanced access to user context and session state.
+    Create the root agent with enhanced access to user context and session state,
+    including consolidated context appended to the instruction.
     """
     
-    def get_session_context_tool(session_id: str) -> Dict[str, Any]:
-        """Tool for root agent to access session context with consolidated context string."""
-        try:
-            context = get_user_context_from_session(session_id)
-            log_tool_call("get_session_context_tool", {"session_id": session_id}, session_id)
-            log_tool_response("get_session_context_tool", {"status": "success", "context_keys": list(context.keys())}, session_id)
-            
-            # Extract consolidated context for easy agent access
-            consolidated_context = context.get("consolidated_context", "")
-            
-            return {
-                "status": "success",
-                "context": context,
-                "consolidated_context": consolidated_context,
-                "summary": "Use the consolidated_context field which contains formatted course details, memory, and context information."
-            }
-        except Exception as e:
-            log_error("get_session_context_tool", e, session_id)
-            return {
-                "status": "error",
-                "error": str(e)
-            }
-    
-    def get_user_history_tool(user_id: str, query: str = "") -> Dict[str, Any]:
-        """Tool for root agent to search user's historical data."""
-        try:
-            search_query = f"user_id:{user_id}" + (f" {query}" if query else "")
-            results = memory_service.search_memory(search_query, similarity_top_k=5)
-            
-            log_tool_call("get_user_history_tool", {"user_id": user_id, "query": query}, None)
-            log_tool_response("get_user_history_tool", {"status": "success", "results_count": len(results)}, None)
-            
-            return {
-                "status": "success",
-                "history": results
-            }
-        except Exception as e:
-            log_error("get_user_history_tool", e, None)
-            return {
-                "status": "error",
-                "error": str(e)
-            }
+    # Base instruction for the root agent
+    base_instruction = """
+    Vous êtes l'orchestrateur principal pour la planification de cours et le développement d'évaluations, spécialisé dans le cours de Biologie cellulaire (niveau CEGEP).
 
-    # Enhanced root agent with context tools
+    Votre tâche est de :
+    1. Gérer le flux de travail pour la création de plans de cours et d'évaluations.
+    2. Utiliser les informations fournies sur le cours de Biologie cellulaire pour guider les agents spécialisés.
+    3. Assurer la cohérence pédagogique entre les objectifs, le contenu et les évaluations.
+    4. Interagir avec les agents spécialisés (planification, évaluation, ressources) selon la demande de l'utilisateur.
+
+Résumé du cours : Biologie cellulaire (niveau CEGEP)
+Ce cours de biologie offre une introduction approfondie à la structure, la fonction et les processus fondamentaux des cellules, unité de base du vivant. Il s'adresse aux étudiants de niveau collégial souhaitant acquérir une compréhension solide des principes cellulaires en vue de futures études en sciences de la santé, biotechnologie ou sciences pures.
+
+Contenus principaux :
+Théorie cellulaire : origine, évolution et importance des cellules dans les organismes vivants.
+Types de cellules : comparaison entre cellules procaryotes et eucaryotes.
+Organisation cellulaire : structure et rôle des organites (noyau, mitochondrie, réticulum endoplasmique, etc.).
+Cycle cellulaire et division : mitose, méiose, régulation du cycle cellulaire.
+Fonctions essentielles : respiration cellulaire, photosynthèse, synthèse des protéines, transport membranaire.
+Communication cellulaire : signaux chimiques, récepteurs et mécanismes de transduction.
+Applications biomédicales et biotechnologiques : cellules souches, culture cellulaire, génie génétique.
+
+Objectifs d’apprentissage :
+Décrire et illustrer les composants cellulaires et leurs fonctions.
+Expliquer les mécanismes clés du métabolisme et de la division cellulaire.
+Relier les connaissances cellulaires aux phénomènes biologiques observables chez les organismes vivants.
+Interpréter des données expérimentales simples liées à la biologie cellulaire."""
+    
+    # Append consolidated context to the instruction if provided
+    full_instruction = f"{base_instruction}\n\n--- CONSOLIDATED CONTEXT ---\n{consolidated_context}" if consolidated_context else base_instruction
+    
+    # Enhanced root agent with context tools (tools are removed as context is in instruction)
     enhanced_root_agent = Agent(
         name="pedagogical_orchestrator_enhanced",
         model="gemini-2.0-flash-exp",
         description="Enhanced orchestrator with full access to user context and session state.",
-        instruction="""
-        You are the main orchestrator for course planning and assessment development with comprehensive course and user context.
-        
-        IMPORTANT: You have access to consolidated context that includes:
-        - Most recent user query and agent's last response (for conversation continuity)
-        - Current course details from the database (ID, name, level, description, session, instructor)
-        - Detailed course information in JSON format (course structure, objectives, materials, etc.)
-        - User profile information (name, preferences, course history)
-        - Current workflow step and chat history
-        
-        Use this consolidated context to:
-        1. Maintain conversation continuity by referencing previous interactions
-        2. Personalize responses based on user preferences and current course context
-        3. Align all content with the specific course level, description, and detailed information
-        4. Reference existing course structure and materials when making recommendations
-        5. Make informed decisions about workflow progression based on course requirements
-        
-        Available tools:
-        - get_session_context_tool: Get current session context including consolidated context string
-        - get_user_history_tool: Search user's historical data and interactions
-        
-        Always maintain pedagogical alignment between objectives, content, and assessment.
-        Leverage the detailed course information to provide contextually relevant recommendations.
-        """,
-        tools=[get_session_context_tool, get_user_history_tool]
+        instruction=full_instruction,
+        tools=[] # Tools for getting context are no longer needed
     )
     
     return enhanced_root_agent
@@ -573,7 +628,9 @@ def get_user_context_from_session(session_id: str) -> Dict[str, Any]:
         "supported_languages": json.loads(state.get("app:supported_languages", "[]")),
         "consolidated_context": consolidated_context  # New consolidated context string
     }
-    
+
+    log_agent_call("get_user_context_from_session", {"message": "Consolidated context built", "consolidated_context_preview": consolidated_context[:500] + "..."}, session_id) # Log consolidated context preview
+
     log_agent_response("get_user_context_from_session", {"session_id": session_id, "context_keys": list(context.keys())}, session_id)
     return context
 
@@ -804,16 +861,18 @@ def handle_chat_message_enhanced(
         enhanced_message = f"{consolidated_context}\n\nUser Message: {message}" if consolidated_context else message
         
         # Use root agent to orchestrate the response
-        log_agent_call(root_agent.name, agent_context, session_id)
+        # Create a new instance of the root agent with the consolidated context in its instruction
+        contextual_root_agent = create_root_agent_with_context(consolidated_context)
         
-        # Pass the enhanced context to the root agent
-        # The root agent can now access session context via its tools
-        agent_result = root_agent.run(
-            inputs={"message": enhanced_message, "session_id": session_id},
-            state=user_context  # Pass full context as state
+        log_agent_call(contextual_root_agent.name, agent_context, session_id)
+        
+        # Pass the user message to the contextual root agent
+        agent_result = contextual_root_agent.run(
+            inputs={"message": message}, # Pass only the user message as context is in instruction
+            state=user_context  # Pass full context as state (optional, but good practice)
         )
         
-        log_agent_response(root_agent.name, agent_result, session_id)
+        log_agent_response(contextual_root_agent.name, agent_result, session_id)
 
         # Process agent result and update session state
         if agent_result:

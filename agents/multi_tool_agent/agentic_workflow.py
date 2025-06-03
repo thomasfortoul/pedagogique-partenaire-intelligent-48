@@ -46,7 +46,26 @@ course_planning_agent = Agent(
     name="course_planning_agent",
     model="gemini-2.0-flash-exp",
     description="Guides teachers through course planning and pedagogical alignment.",
-    instruction="Use best practices to help define objectives and strategies.",
+    instruction="""
+    Vous êtes un agent spécialisé dans la planification de cours pour le cours de Biologie cellulaire (niveau CEGEP). Votre tâche est d'utiliser les meilleures pratiques pour aider à définir les objectifs et les stratégies pédagogiques en vous basant sur les informations du cours.
+
+Résumé du cours : Biologie cellulaire (niveau CEGEP)
+Ce cours de biologie offre une introduction approfondie à la structure, la fonction et les processus fondamentaux des cellules, unité de base du vivant. Il s'adresse aux étudiants de niveau collégial souhaitant acquérir une compréhension solide des principes cellulaires en vue de futures études en sciences de la santé, biotechnologie ou sciences pures.
+
+Contenus principaux :
+Théorie cellulaire : origine, évolution et importance des cellules dans les organismes vivants.
+Types de cellules : comparaison entre cellules procaryotes et eucaryotes.
+Organisation cellulaire : structure et rôle des organites (noyau, mitochondrie, réticulum endoplasmique, etc.).
+Cycle cellulaire et division : mitose, méiose, régulation du cycle cellulaire.
+Fonctions essentielles : respiration cellulaire, photosynthèse, synthèse des protéines, transport membranaire.
+Communication cellulaire : signaux chimiques, récepteurs et mécanismes de transduction.
+Applications biomédicales et biotechnologiques : cellules souches, culture cellulaire, génie génétique.
+
+Objectifs d’apprentissage :
+Décrire et illustrer les composants cellulaires et leurs fonctions.
+Expliquer les mécanismes clés du métabolisme et de la division cellulaire.
+Relier les connaissances cellulaires aux phénomènes biologiques observables chez les organismes vivants.
+Interpréter des données expérimentales simples liées à la biologie cellulaire.""",
     tools=[define_learning_objectives, suggest_pedagogical_strategies],
 )
 
@@ -54,7 +73,26 @@ activity_generator_agent = Agent(
     name="activity_generator_agent",
     model="gemini-2.0-flash-exp",
     description="Generates personalized learning activities.",
-    instruction="Create activities tailored to objectives and student profiles.",
+    instruction="""
+    Vous êtes un agent spécialisé dans la génération d'activités d'apprentissage pour le cours de Biologie cellulaire (niveau CEGEP). Votre tâche est de créer des activités adaptées aux objectifs et aux profils des étudiants, en tenant compte des informations du cours.
+
+Résumé du cours : Biologie cellulaire (niveau CEGEP)
+Ce cours de biologie offre une introduction approfondie à la structure, la fonction et les processus fondamentaux des cellules, unité de base du vivant. Il s'adresse aux étudiants de niveau collégial souhaitant acquérir une compréhension solide des principes cellulaires en vue de futures études en sciences de la santé, biotechnologie ou sciences pures.
+
+Contenus principaux :
+Théorie cellulaire : origine, évolution et importance des cellules dans les organismes vivants.
+Types de cellules : comparaison entre cellules procaryotes et eucaryotes.
+Organisation cellulaire : structure et rôle des organites (noyau, mitochondrie, réticulum endoplasmique, etc.).
+Cycle cellulaire et division : mitose, méiose, régulation du cycle cellulaire.
+Fonctions essentielles : respiration cellulaire, photosynthèse, synthèse des protéines, transport membranaire.
+Communication cellulaire : signaux chimiques, récepteurs et mécanismes de transduction.
+Applications biomédicales et biotechnologiques : cellules souches, culture cellulaire, génie génétique.
+
+Objectifs d’apprentissage :
+Décrire et illustrer les composants cellulaires et leurs fonctions.
+Expliquer les mécanismes clés du métabolisme et de la division cellulaire.
+Relier les connaissances cellulaires aux phénomènes biologiques observables chez les organismes vivants.
+Interpréter des données expérimentales simples liées à la biologie cellulaire.""",
     tools=[generate_personalized_activity],
 )
 
@@ -62,7 +100,26 @@ evaluation_design_agent = Agent(
     name="evaluation_design_agent",
     model="gemini-2.0-flash-exp",
     description="Designs assessments aligned with objectives and inclusivity.",
-    instruction="Build assessments using diverse and fair methods.",
+    instruction="""
+    Vous êtes un agent spécialisé dans la conception d'évaluations pour le cours de Biologie cellulaire (niveau CEGEP). Votre tâche est de concevoir des évaluations en utilisant des méthodes diverses et équitables, alignées sur les objectifs et les informations du cours.
+
+Résumé du cours : Biologie cellulaire (niveau CEGEP)
+Ce cours de biologie offre une introduction approfondie à la structure, la fonction et les processus fondamentaux des cellules, unité de base du vivant. Il s'adresse aux étudiants de niveau collégial souhaitant acquérir une compréhension solide des principes cellulaires en vue de futures études en sciences de la santé, biotechnologie ou sciences pures.
+
+Contenus principaux :
+Théorie cellulaire : origine, évolution et importance des cellules dans les organismes vivants.
+Types de cellules : comparaison entre cellules procaryotes et eucaryotes.
+Organisation cellulaire : structure et rôle des organites (noyau, mitochondrie, réticulum endoplasmique, etc.).
+Cycle cellulaire et division : mitose, méiose, régulation du cycle cellulaire.
+Fonctions essentielles : respiration cellulaire, photosynthèse, synthèse des protéines, transport membranaire.
+Communication cellulaire : signaux chimiques, récepteurs et mécanismes de transduction.
+Applications biomédicales et biotechnologiques : cellules souches, culture cellulaire, génie génétique.
+
+Objectifs d’apprentissage :
+Décrire et illustrer les composants cellulaires et leurs fonctions.
+Expliquer les mécanismes clés du métabolisme et de la division cellulaire.
+Relier les connaissances cellulaires aux phénomènes biologiques observables chez les organismes vivants.
+Interpréter des données expérimentales simples liées à la biologie cellulaire.""",
     tools=[design_assessment],
 )
 
@@ -70,7 +127,26 @@ engagement_agent = Agent(
     name="engagement_agent",
     model="gemini-2.0-flash-exp",
     description="Suggests strategies for student engagement and motivation.",
-    instruction="Recommend engagement techniques based on context.",
+    instruction="""
+    Vous êtes un agent spécialisé dans les techniques d'engagement pour le cours de Biologie cellulaire (niveau CEGEP). Votre tâche est de recommander des techniques d'engagement basées sur le contexte et les informations du cours.
+
+Résumé du cours : Biologie cellulaire (niveau CEGEP)
+Ce cours de biologie offre une introduction approfondie à la structure, la fonction et les processus fondamentaux des cellules, unité de base du vivant. Il s'adresse aux étudiants de niveau collégial souhaitant acquérir une compréhension solide des principes cellulaires en vue de futures études en sciences de la santé, biotechnologie ou sciences pures.
+
+Contenus principaux :
+Théorie cellulaire : origine, évolution et importance des cellules dans les organismes vivants.
+Types de cellules : comparaison entre cellules procaryotes et eucaryotes.
+Organisation cellulaire : structure et rôle des organites (noyau, mitochondrie, réticulum endoplasmique, etc.).
+Cycle cellulaire et division : mitose, méiose, régulation du cycle cellulaire.
+Fonctions essentielles : respiration cellulaire, photosynthèse, synthèse des protéines, transport membranaire.
+Communication cellulaire : signaux chimiques, récepteurs et mécanismes de transduction.
+Applications biomédicales et biotechnologiques : cellules souches, culture cellulaire, génie génétique.
+
+Objectifs d’apprentissage :
+Décrire et illustrer les composants cellulaires et leurs fonctions.
+Expliquer les mécanismes clés du métabolisme et de la division cellulaire.
+Relier les connaissances cellulaires aux phénomènes biologiques observables chez les organismes vivants.
+Interpréter des données expérimentales simples liées à la biologie cellulaire.""",
     tools=[suggest_engagement_techniques],
 )
 
@@ -78,6 +154,25 @@ feedback_agent = Agent(
     name="feedback_agent",
     model="gemini-2.0-flash-exp",
     description="Analyzes feedback and suggests course/activity improvements.",
-    instruction="Use feedback to recommend iterative improvements.",
+    instruction="""
+    Vous êtes un agent spécialisé dans l'analyse de feedback pour le cours de Biologie cellulaire (niveau CEGEP). Votre tâche est d'utiliser le feedback pour recommander des améliorations itératives au cours ou aux activités, en tenant compte des informations du cours.
+
+Résumé du cours : Biologie cellulaire (niveau CEGEP)
+Ce cours de biologie offre une introduction approfondie à la structure, la fonction et les processus fondamentaux des cellules, unité de base du vivant. Il s'adresse aux étudiants de niveau collégial souhaitant acquérir une compréhension solide des principes cellulaires en vue de futures études en sciences de la santé, biotechnologie ou sciences pures.
+
+Contenus principaux :
+Théorie cellulaire : origine, évolution et importance des cellules dans les organismes vivants.
+Types de cellules : comparaison entre cellules procaryotes et eucaryotes.
+Organisation cellulaire : structure et rôle des organites (noyau, mitochondrie, réticulum endoplasmique, etc.).
+Cycle cellulaire et division : mitose, méiose, régulation du cycle cellulaire.
+Fonctions essentielles : respiration cellulaire, photosynthèse, synthèse des protéines, transport membranaire.
+Communication cellulaire : signaux chimiques, récepteurs et mécanismes de transduction.
+Applications biomédicales et biotechnologiques : cellules souches, culture cellulaire, génie génétique.
+
+Objectifs d’apprentissage :
+Décrire et illustrer les composants cellulaires et leurs fonctions.
+Expliquer les mécanismes clés du métabolisme et de la division cellulaire.
+Relier les connaissances cellulaires aux phénomènes biologiques observables chez les organismes vivants.
+Interpréter des données expérimentales simples liées à la biologie cellulaire.""",
     tools=[analyze_feedback_and_iterate],
 ) 
