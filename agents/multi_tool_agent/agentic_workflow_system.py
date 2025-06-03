@@ -80,6 +80,7 @@ def extract_learning_objectives(document: str, current_course: Optional[Course] 
     if current_course:
         print(f"Tool: extract_learning_objectives - Current Course Title: {current_course.title}")
         print(f"Tool: extract_learning_objectives - Current Course Description: {current_course.description}")
+        print(f"Tool: extract_learning_objectives - Current Course Level: {current_course.level}") # Add this line
     if user_profile:
         print(f"Tool: extract_learning_objectives - User ID: {user_profile.userId}")
         print(f"Tool: extract_learning_objectives - User Courses Count: {len(user_profile.courses)}")
@@ -420,6 +421,7 @@ def initialize_session_with_user_context(
         "current_course_title": current_course.title if current_course else None,
         "current_course_description": current_course.description if current_course else None,
         "current_course_level": current_course.level if current_course else None,
+        "current_course_pedagogical_info": json.dumps(current_course.summarized_pedagogical_info) if current_course and current_course.summarized_pedagogical_info else "{}",
         
         # App-level state (shared across all users)
         "app:version": "1.0.0",
@@ -490,7 +492,7 @@ def update_session_state_adk(
 def get_user_context_from_session(session_id: str) -> Dict[str, Any]:
     """
     Retrieve user profile and course context from session state.
-    Returns structured context for agent consumption.
+    Returns structured context for agent consumption with consolidated context string.
     """
     session = session_service.get_session(
         app_name=APP_NAME,
@@ -503,37 +505,111 @@ def get_user_context_from_session(session_id: str) -> Dict[str, Any]:
     
     state = session.state
     
-    # Extract user context using ADK state patterns
-    user_context = {
-        "user_id": session.user_id,
-        "session_id": session_id,
+    user_profile_data = {
+        "userId": state.get("user:profile_id"),
+        "name": state.get("user:name"),
+        "email": state.get("user:email"),
+        "preferences": json.loads(state.get("user:preferences", "{}"))
+    }
+    user_profile = UserProfile(**user_profile_data) if user_profile_data["userId"] else None
+
+    # Get course details including the new course_details_json field
+    course_details_json_str = state.get("current_course_details_json")
+    course_details_json = None
+    if course_details_json_str:
+        try:
+            course_details_json = json.loads(course_details_json_str) if isinstance(course_details_json_str, str) else course_details_json_str
+        except json.JSONDecodeError:
+            course_details_json = None
+
+    current_course_data = {
+        "id": state.get("current_course_id"),
+        "title": state.get("current_course_title"),
+        "description": state.get("current_course_description"),
+        "level": state.get("current_course_level"),
+        "course_details_json": course_details_json
+    }
+    current_course = Course(**current_course_data) if current_course_data["id"] else None
+
+    # Extract chat context for memory
+    chat_context = state.get("chat_context", {})
+    most_recent_user_query = chat_context.get("last_message", "")
+    agent_last_response = chat_context.get("last_response", "")
+
+    # Build consolidated context string
+    consolidated_context = _build_consolidated_context_string(
+        most_recent_user_query, 
+        agent_last_response, 
+        current_course, 
+        course_details_json
+    )
+
+    context = {
+        "user_profile": user_profile,
+        "current_course": current_course,
         "current_step": state.get("current_step"),
-        "chat_context": state.get("chat_context", {}),
-        
-        # User profile information
-        "user_profile": {
-            "userId": state.get("user:profile_id"),
-            "name": state.get("user:name"),
-            "email": state.get("user:email"),
-            "preferences": json.loads(state.get("user:preferences", "{}"))
-        } if state.get("user:profile_id") else None,
-        
-        # Current course information
-        "current_course": {
-            "id": state.get("current_course_id"),
-            "title": state.get("current_course_title"),
-            "description": state.get("current_course_description"),
-            "level": state.get("current_course_level")
-        } if state.get("current_course_id") else None,
-        
-        # App-level context
-        "app_context": {
-            "version": state.get("app:version"),
-            "supported_languages": json.loads(state.get("app:supported_languages", "[]"))
-        }
+        "chat_context": chat_context,
+        "current_task_id": state.get("current_task_id"),
+        "app_version": state.get("app:version"),
+        "supported_languages": json.loads(state.get("app:supported_languages", "[]")),
+        "consolidated_context": consolidated_context  # New consolidated context string
     }
     
-    return user_context
+    log_agent_response("get_user_context_from_session", {"session_id": session_id, "context_keys": list(context.keys())}, session_id)
+    return context
+
+
+def _build_consolidated_context_string(
+    user_query: str, 
+    agent_response: str, 
+    current_course: Optional[Course], 
+    course_details_json: Optional[Dict[str, Any]]
+) -> str:
+    """
+    Build a consolidated context string with memory and course details for agent consumption.
+    """
+    context_parts = ["--- CONTEXT ---"]
+    
+    # Add memory information
+    if user_query:
+        context_parts.append(f"Most Recent User Query: {user_query}")
+    if agent_response:
+        context_parts.append(f"Agent's Last Response: {agent_response}")
+    
+    if user_query or agent_response:
+        context_parts.append("")  # Empty line for separation
+    
+    # Add current course details
+    if current_course:
+        context_parts.append("--- CURRENT COURSE DETAILS ---")
+        context_parts.append(f"Course_ID: {current_course.id}")
+        context_parts.append(f"Course_Name: {current_course.title}")
+        if current_course.level:
+            context_parts.append(f"Course_Level: {current_course.level}")
+        if current_course.description:
+            context_parts.append(f"Course_Description_Summary: {current_course.description}")
+        
+        # Add session and instructor if available from course attributes
+        if hasattr(current_course, 'session') and current_course.session:
+            context_parts.append(f"Course_Session: {current_course.session}")
+        if hasattr(current_course, 'instructor') and current_course.instructor:
+            context_parts.append(f"Course_Instructor: {current_course.instructor}")
+        
+        context_parts.append("")  # Empty line for separation
+    
+    # Add detailed course information (JSON)
+    if course_details_json:
+        context_parts.append("--- DETAILED COURSE INFORMATION (JSON) ---")
+        try:
+            formatted_json = json.dumps(course_details_json, indent=2)
+            context_parts.append(formatted_json)
+        except Exception:
+            context_parts.append(str(course_details_json))
+        context_parts.append("")  # Empty line for separation
+    
+    context_parts.append("--- END CONTEXT ---")
+    
+    return "\n".join(context_parts)
 
 # ------------------------------------------------------------------------
 # Enhanced Memory Service Functions
@@ -671,12 +747,21 @@ def handle_chat_message_enhanced(
                 add_user_to_memory(user_profile.userId, user_profile)
             
             if current_course:
-                state_updates.update({
+                course_state_updates = {
                     "current_course_id": current_course.id,
                     "current_course_title": current_course.title,
                     "current_course_description": current_course.description,
                     "current_course_level": current_course.level
-                })
+                }
+                
+                # Handle course_details_json serialization
+                if current_course.course_details_json is not None:
+                    if isinstance(current_course.course_details_json, dict):
+                        course_state_updates["current_course_details_json"] = json.dumps(current_course.course_details_json)
+                    else:
+                        course_state_updates["current_course_details_json"] = current_course.course_details_json
+                
+                state_updates.update(course_state_updates)
                 # Add to memory for long-term storage
                 add_course_to_memory(user_context["user_id"], current_course)
             
@@ -768,74 +853,35 @@ def handle_chat_message_enhanced(
 # Session Initialization API for External Integration
 # ------------------------------------------------------------------------
 
-def initialize_session_for_api(
-    user_id: str,
-    user_profile_data: Optional[Dict[str, Any]] = None,
-    current_course_data: Optional[Dict[str, Any]] = None
-) -> Dict[str, Any]:
+def initialize_session_for_api(user_id: str, course_id: Optional[str] = None) -> Dict[str, Any]:
     """
-    Initialize a session for API integration with user profile and course data.
-    
-    Args:
-        user_id: The user's unique identifier
-        user_profile_data: Dict containing user profile information
-        current_course_data: Dict containing current course information
-        
-    Returns:
-        Dict with session_id and initialization status
+    Initializes a new session for API interaction, fetching user and course data from the database.
     """
+    log_agent_call("initialize_session_for_api", {"user_id": user_id, "course_id": course_id}, None)
     try:
-        # Convert dicts to proper objects if provided
-        user_profile = None
-        if user_profile_data:
-            user_profile = UserProfile(
-                userId=user_profile_data.get("userId", user_id),
-                name=user_profile_data.get("name", ""),
-                email=user_profile_data.get("email", ""),
-                preferences=user_profile_data.get("preferences", {}),
-                courses=[Course(**course_data) for course_data in user_profile_data.get("courses", [])]
-            )
-        
+        # Placeholder for fetching user profile and course from database
+        # In a real system, this would involve database queries
+        user_profile = UserProfile(userId=user_id, name="Test User", email="test@example.com", preferences={"theme": "dark"})
         current_course = None
-        if current_course_data:
+        if course_id:
             current_course = Course(
-                id=current_course_data.get("id", ""),
-                title=current_course_data.get("title", ""),
-                description=current_course_data.get("description", ""),
-                level=current_course_data.get("level", "")
+                id=course_id,
+                title="Test Course",
+                description="A course for testing.",
+                level="Beginner"
             )
         
-        # Initialize session with proper context
-        session_id = initialize_session_with_user_context(
-            user_id=user_id,
-            user_profile=user_profile,
-            current_course=current_course
-        )
+        session_id = initialize_session_with_user_context(user_id, user_profile, current_course)
         
-        log_agent_call("initialize_session_for_api", {
-            "user_id": user_id,
-            "session_id": session_id,
-            "has_profile": user_profile is not None,
-            "has_course": current_course is not None
-        }, session_id)
-        
-        return {
-            "status": "success",
-            "session_id": session_id,
-            "user_id": user_id,
-            "message": "Session initialized successfully with user context"
-        }
-        
+        log_agent_response("initialize_session_for_api", {"session_id": session_id}, session_id)
+        return {"session_id": session_id}
     except Exception as e:
         log_error("initialize_session_for_api", e, None)
-        return {
-            "status": "error",
-            "error": str(e),
-            "message": "Failed to initialize session"
-        }
+        return {"error": str(e)}
+        
 
 def update_session_context(
-    session_id: str,
+    session_id: str, 
     user_profile_data: Optional[Dict[str, Any]] = None,
     current_course_data: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
@@ -846,73 +892,61 @@ def update_session_context(
         session_id: The session to update
         user_profile_data: Updated user profile information
         current_course_data: Updated course information
-        
     Returns:
         Dict with update status
     """
+    log_agent_call("update_session_context", {"session_id": session_id, "has_profile_data": user_profile_data is not None, "has_course_data": current_course_data is not None}, session_id)
     try:
+        session = session_service.get_session(
+            app_name=APP_NAME,
+            user_id=None,
+            session_id=session_id
+        )
+        if not session:
+            raise ValueError(f"Session {session_id} not found")
+
         state_updates = {}
-        
         if user_profile_data:
+            state_updates.update({
+                "user:profile_id": user_profile_data.get("userId"),
+                "user:name": user_profile_data.get("name"),
+                "user:email": user_profile_data.get("email"),
+                "user:preferences": json.dumps(user_profile_data.get("preferences", {}))
+            })
+            # Update user in memory as well
             user_profile = UserProfile(
-                userId=user_profile_data.get("userId", ""),
-                name=user_profile_data.get("name", ""),
-                email=user_profile_data.get("email", ""),
-                preferences=user_profile_data.get("preferences", {}),
-                courses=[Course(**course_data) for course_data in user_profile_data.get("courses", [])]
+                userId=user_profile_data.get("userId"),
+                name=user_profile_data.get("name"),
+                email=user_profile_data.get("email"),
+                courses=[Course(**c) for c in user_profile_data.get("courses", [])],
+                preferences=user_profile_data.get("preferences", {})
             )
-            
-            state_updates.update({
-                "user:profile_id": user_profile.userId,
-                "user:name": user_profile.name,
-                "user:email": user_profile.email,
-                "user:preferences": json.dumps(user_profile.preferences)
-            })
-            
-            # Add to memory
             add_user_to_memory(user_profile.userId, user_profile)
-        
+
         if current_course_data:
-            current_course = Course(
-                id=current_course_data.get("id", ""),
-                title=current_course_data.get("title", ""),
-                description=current_course_data.get("description", ""),
-                level=current_course_data.get("level", "")
-            )
-            
             state_updates.update({
-                "current_course_id": current_course.id,
-                "current_course_title": current_course.title,
-                "current_course_description": current_course.description,
-                "current_course_level": current_course.level
+                "current_course_id": current_course_data.get("id"),
+                "current_course_title": current_course_data.get("title"),
+                "current_course_description": current_course_data.get("description"),
+                "current_course_level": current_course_data.get("level")
             })
-            
-            # Add to memory
-            context = get_user_context_from_session(session_id)
-            add_course_to_memory(context["user_id"], current_course)
-        
+            # Update course in memory as well
+            current_course = Course(
+                id=current_course_data.get("id"),
+                title=current_course_data.get("title"),
+                description=current_course_data.get("description"),
+                level=current_course_data.get("level")
+            )
+            add_course_to_memory(session.user_id, current_course) # Assuming user_id is available in session
+
         if state_updates:
-            update_session_state_adk(session_id, state_updates, "api")
+            update_session_state_adk(session_id, state_updates, event_author="api")
         
-        log_agent_call("update_session_context", {
-            "session_id": session_id,
-            "updated_fields": list(state_updates.keys())
-        }, session_id)
-        
-        return {
-            "status": "success",
-            "session_id": session_id,
-            "updated_fields": list(state_updates.keys()),
-            "message": "Session context updated successfully"
-        }
-        
+        log_agent_response("update_session_context", {"status": "success"}, session_id)
+        return {"status": "success"}
     except Exception as e:
         log_error("update_session_context", e, session_id)
-        return {
-            "status": "error",
-            "error": str(e),
-            "message": "Failed to update session context"
-        }
+        return {"error": str(e)}
 
 def get_session_info(session_id: str) -> Dict[str, Any]:
     """

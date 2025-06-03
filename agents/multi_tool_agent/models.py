@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 
 @dataclass
 class Course:
@@ -8,6 +8,7 @@ class Course:
     description: str
     level: Optional[str] = None
     documents: Optional[List[Dict]] = field(default_factory=list) # Assuming documents are a list of dicts for now
+    course_details_json: Optional[Dict[str, Any]] = None # New field for JSON course details
 
 @dataclass
 class UserProfile:

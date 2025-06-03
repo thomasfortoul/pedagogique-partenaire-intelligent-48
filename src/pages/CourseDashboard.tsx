@@ -15,7 +15,8 @@ import { ArrowLeft, FileText, Settings, PenLine, BookOpen, Users, Clock, Award }
 import { useToast } from '@/hooks/use-toast';
 import { Course } from '@/types/course';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth } from '@/lib/auth/auth-context'; // Import useAuth
+import { useAuth } from '@/lib/auth/auth-context';
+import { supabase } from '../../sample-platfor/lib/db/supabase-service';
 
 const CourseDashboard = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -31,34 +32,40 @@ const CourseDashboard = () => {
     }
   }, [user, isLoading, navigate]);
 
-  // Récupérer les données du cours depuis le localStorage
+  // Récupérer les données du cours depuis Supabase
   useEffect(() => {
-    if (!user) return; // Only fetch if user is authenticated
+    const fetchCourse = async () => {
+      if (!user || !courseId) return;
 
-    const storedCoursesString = localStorage.getItem('courses');
-    if (storedCoursesString) {
-      try {
-        const storedCourses = JSON.parse(storedCoursesString);
-        const foundCourse = storedCourses.find((c: Course) => c.id === courseId);
-        
-        if (foundCourse) {
-          setCourse(foundCourse);
-        } else {
-          toast({
-            title: "Cours introuvable",
-            description: "Ce cours n'existe pas ou vous n'y avez pas accès.",
-            variant: "destructive"
-          });
-          navigate('/dashboard2');
-        }
-      } catch (error) {
-        console.error("Error parsing courses data:", error);
+      const { data, error } = await supabase
+        .from('courses')
+        .select('*')
+        .eq('id', courseId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) {
+        console.error("Error fetching course:", error);
+        toast({
+          title: "Cours introuvable",
+          description: "Ce cours n'existe pas ou vous n'y avez pas accès.",
+          variant: "destructive"
+        });
+        navigate('/dashboard2');
+      } else if (data) {
+        setCourse(data);
+      } else {
+        toast({
+          title: "Cours introuvable",
+          description: "Ce cours n'existe pas ou vous n'y avez pas accès.",
+          variant: "destructive"
+        });
         navigate('/dashboard2');
       }
-    } else {
-      navigate('/dashboard2');
-    }
-  }, [courseId, navigate, toast, user]); // Add user to dependency array
+    };
+
+    fetchCourse();
+  }, [courseId, navigate, toast, user]);
   
   // Données d'exemple pour les statistiques (à remplacer par des données réelles plus tard)
   const courseStatistics = {

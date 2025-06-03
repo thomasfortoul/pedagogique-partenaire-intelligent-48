@@ -1,6 +1,6 @@
 "use client"
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import { User, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -11,7 +11,6 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   signUp: (email: string, password: string, options?: { data?: { firstName?: string; lastName?: string } }) => Promise<{ error: Error | null }>;
-  supabase: SupabaseClient;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,8 +18,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [supabase] = useState(() =>
     createClient(
-      import.meta.env.VITE_SUPABASE_URL!, // Use import.meta.env
-      import.meta.env.VITE_SUPABASE_ANON_KEY! // Use import.meta.env
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
   );
   const [user, setUser] = useState<User | null>(null);
@@ -29,8 +28,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL; // Use import.meta.env
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY; // Use import.meta.env
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     
     if (!supabaseUrl || !supabaseAnonKey) {
       console.error('[AuthContext] Missing Supabase URL or Anon Key:', { supabaseUrl, supabaseAnonKey });
@@ -98,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, options?: { data?: { firstName?: string; lastName?: string } }) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -110,26 +109,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('[AuthContext] Sign up error:', error);
         return { error };
       }
-
-      // If sign-up is successful, insert user into public.users table
-      if (data.user) {
-        console.log(`[AuthContext] Attempting to insert user ${data.user.id} into public.users`); // Roo: Log before insert
-        const { error: insertError } = await supabase
-          .from('users')
-          .insert({
-            id: data.user.id,
-            name: `${options?.data?.firstName || ''} ${options?.data?.lastName || ''}`.trim(),
-            role: 'teacher' // Default role for new users
-          });
-
-        if (insertError) {
-          console.error(`[AuthContext] Error inserting user ${data.user.id} into public.users:`, JSON.stringify(insertError, null, 2)); // Roo: Log insertError with user ID
-          // Consider rolling back the auth.users creation or handling this error appropriately
-          // For now, we'll just log it and proceed, as the auth user is created.
-          return { error: insertError };
-        }
-        console.log(`[AuthContext] Successfully inserted user ${data.user.id} into public.users`); // Roo: Log successful insert
-      }
       
       return { error: null };
     } catch (err) {
@@ -139,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, error, isLoading, signIn, signOut, signUp, supabase }}>
+    <AuthContext.Provider value={{ user, session, error, isLoading, signIn, signOut, signUp }}>
       {children}
     </AuthContext.Provider>
   );

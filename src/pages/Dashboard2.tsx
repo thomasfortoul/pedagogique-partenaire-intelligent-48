@@ -33,10 +33,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { BookOpen, BookOpenText, Edit, Plus, Trash2, User } from 'lucide-react';
 import NavBar from '@/components/NavBar';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '../lib/auth/auth-context'; // Import useAuth
+import { useAuth } from '../lib/auth/auth-context';
 import CourseCard from '@/components/CourseCard';
 import CourseForm from '@/components/CourseForm';
 import { Course } from '@/types/course';
+import { createCourse, getCoursesByUserId, updateCourse, deleteCourse } from '../../sample-platfor/lib/db/supabase-service';
 
 // Schema definition for the profile form
 const profileSchema = z.object({
@@ -79,18 +80,25 @@ const Dashboard2 = () => {
     }
   }, [user]);
 
-  // Load courses from localStorage on initial render
+  // Load courses from Supabase on initial render
   useEffect(() => {
-    const storedCoursesString = localStorage.getItem('courses');
-    if (storedCoursesString) {
-      try {
-        const storedCourses = JSON.parse(storedCoursesString);
-        setCourses(storedCourses);
-      } catch (error) {
-        console.error("Error parsing stored courses:", error);
+    const fetchCourses = async () => {
+      if (user) {
+        const { data, error } = await getCoursesByUserId(user.id);
+        if (error) {
+          console.error("Error fetching courses:", error);
+          toast({
+            title: "Erreur de chargement des cours",
+            description: error.message,
+            variant: "destructive",
+          });
+        } else {
+          setCourses(data || []);
+        }
       }
-    }
-  }, []);
+    };
+    fetchCourses();
+  }, [user, toast]);
 
   // Initialize the profile form
   const profileForm = useForm<ProfileFormValues>({
@@ -153,7 +161,16 @@ const Dashboard2 = () => {
   };
 
   // Add a new course
-  const handleAddCourse = (course: Course) => {
+  const handleAddCourse = async (courseData: Course) => {
+    if (!user) {
+      toast({
+        title: "Erreur",
+        description: "Vous devez être connecté pour créer un cours.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (courses.length >= 5) {
       toast({
         title: "Limite atteinte",
@@ -162,24 +179,34 @@ const Dashboard2 = () => {
       });
       return;
     }
-    
-    const newCourse = {
-      ...course,
-      id: Date.now().toString(),
-      documents: [],
-    };
-    
-    const updatedCourses = [...courses, newCourse];
-    setCourses(updatedCourses);
-    
-    // Store in localStorage for persistence
-    localStorage.setItem('courses', JSON.stringify(updatedCourses));
-    
-    toast({
-      title: "Cours créé",
-      description: `Le cours "${course.title}" a été créé avec succès.`,
+
+    console.log("[Dashboard2] Attempting to create course for user:", JSON.stringify(user, null, 2)); // Roo: Log user object
+    const { data, error } = await createCourse(user.id, {
+      title: courseData.title,
+      description: courseData.description,
+      level: courseData.level,
     });
-    setIsAddCourseOpen(false);
+
+    if (error) {
+      console.error("Error creating course:", error);
+      toast({
+        title: "Erreur de création du cours",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else if (data && data.length > 0) {
+      const newCourse = {
+        ...courseData,
+        id: data[0].id, // Supabase returns the ID of the new row
+        documents: [],
+      };
+      setCourses((prevCourses) => [...prevCourses, newCourse]);
+      toast({
+        title: "Cours créé",
+        description: `Le cours "${courseData.title}" a été créé avec succès.`,
+      });
+      setIsAddCourseOpen(false);
+    }
   };
 
   // Edit an existing course
@@ -189,31 +216,70 @@ const Dashboard2 = () => {
   };
 
   // Update a course
-  const handleUpdateCourse = (updatedCourse: Course) => {
-    const updatedCourses = courses.map(c => 
-      c.id === updatedCourse.id ? { ...updatedCourse, documents: c.documents || [] } : c
-    );
-    
-    setCourses(updatedCourses);
-    localStorage.setItem('courses', JSON.stringify(updatedCourses));
-    
-    toast({
-      title: "Cours mis à jour",
-      description: `Le cours "${updatedCourse.title}" a été mis à jour avec succès.`,
+  const handleUpdateCourse = async (updatedCourse: Course) => {
+    if (!user) {
+      toast({
+        title: "Erreur",
+        description: "Vous devez être connecté pour modifier un cours.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await updateCourse(updatedCourse.id, user.id, {
+      title: updatedCourse.title,
+      description: updatedCourse.description,
+      level: updatedCourse.level,
     });
-    setIsEditCourseOpen(false);
+
+    if (error) {
+      console.error("Error updating course:", error);
+      toast({
+        title: "Erreur de mise à jour du cours",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setCourses((prevCourses) =>
+        prevCourses.map((c) =>
+          c.id === updatedCourse.id ? { ...updatedCourse, documents: c.documents || [] } : c
+        )
+      );
+      toast({
+        title: "Cours mis à jour",
+        description: `Le cours "${updatedCourse.title}" a été mis à jour avec succès.`,
+      });
+      setIsEditCourseOpen(false);
+    }
   };
 
   // Delete a course
-  const handleDeleteCourse = (courseId: string) => {
-    const updatedCourses = courses.filter(c => c.id !== courseId);
-    setCourses(updatedCourses);
-    localStorage.setItem('courses', JSON.stringify(updatedCourses));
-    
-    toast({
-      title: "Cours supprimé",
-      description: "Le cours a été supprimé avec succès.",
-    });
+  const handleDeleteCourse = async (courseId: string) => {
+    if (!user) {
+      toast({
+        title: "Erreur",
+        description: "Vous devez être connecté pour supprimer un cours.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await deleteCourse(courseId, user.id);
+
+    if (error) {
+      console.error("Error deleting course:", error);
+      toast({
+        title: "Erreur de suppression du cours",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setCourses((prevCourses) => prevCourses.filter((c) => c.id !== courseId));
+      toast({
+        title: "Cours supprimé",
+        description: "Le cours a été supprimé avec succès.",
+      });
+    }
   };
 
   if (isLoading || !user) { // Add isLoading and !user to condition

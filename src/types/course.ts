@@ -16,4 +16,5 @@ export interface Course {
   documents?: Document[];
   session?: string; // Added session field
   instructor?: string; // Added instructor field for potential future use
+  courseDetailsJson?: Record<string, any>; // New field for JSON course details
 }
