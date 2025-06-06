@@ -1,6 +1,12 @@
 # Pedagogique Partenaire Intelligent
 
+## Handoff Documentation
+
+A comprehensive handoff document for the ERGI project is available at [`HANDOFF_document.md`](HANDOFF_document.md). This document provides detailed information on the project's architecture, key features, technical details, and more, and is intended for new developers joining the project.
+
 ## Getting Started
+
+To get started with the ERGI project, it is highly recommended to first review the comprehensive handoff documentation available at [`HANDOFF_document.md`](HANDOFF_document.md). Once you have a basic understanding of the project, follow the steps below to set up your development environment:
 
 ### 1. Clone the repository
 
